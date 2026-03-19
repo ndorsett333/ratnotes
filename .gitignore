@@ -1,0 +1,71 @@
+# WordPress Plugin Git Ignore
+# Reference: https://github.com/WordPress/WordPress-Coding-Standards
+
+# Core plugin file
+# ratnotes.php
+
+# Dependencies / Composer
+/vendor/
+composer.lock
+composer.json
+
+# Node
+/node_modules/
+package-lock.json
+yarn.lock
+
+# Build files
+/dist/
+/build/
+*.min.css
+*.min.js
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+/phpunit/
+/tests/
+phpunit.xml
+phpunit.xml.dist
+coverage/
+.phpunit.result.cache
+
+# Documentation
+/docs/
+*.md
+!readme.txt
+
+# Languages
+*.pot
+*.po
+*.mo
+!languages/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Uploads (if any)
+/uploads/
+/temp/

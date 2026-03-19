@@ -1,0 +1,350 @@
+/**
+ * RatNotes Admin Styles
+ *
+ * @package RatNotes
+ */
+
+/* Main Layout */
+.ratnotes-admin {
+    margin: 20px 0;
+}
+
+.ratnotes-app {
+    display: flex;
+    min-height: 600px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar */
+.ratnotes-sidebar {
+    width: 200px;
+    background: #fff;
+    border-right: 1px solid #e0e0e0;
+}
+
+.ratnotes-nav {
+    padding: 16px 0;
+}
+
+.ratnotes-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 24px;
+    border: none;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: #3c434a;
+    font-size: 14px;
+}
+
+.ratnotes-nav-item:hover {
+    background-color: #f5f5f5;
+}
+
+.ratnotes-nav-item.active {
+    background-color: #e8f0fe;
+    color: #1a73e8;
+    font-weight: 500;
+}
+
+.ratnotes-nav-item .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+}
+
+/* Main Content */
+.ratnotes-main {
+    flex: 1;
+    padding: 24px;
+}
+
+.ratnotes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    gap: 16px;
+}
+
+.ratnotes-search {
+    flex: 1;
+    max-width: 600px;
+}
+
+.ratnotes-search-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+}
+
+.ratnotes-search-input:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+    outline: none;
+}
+
+/* Notes Grid */
+.ratnotes-notes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.ratnotes-note-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+    border: 1px solid #e0e0e0;
+    position: relative;
+}
+
+.ratnotes-note-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ratnotes-note-card.pinned::before {
+    content: "\f320";
+    font-family: dashicons;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    color: #666;
+    font-size: 16px;
+}
+
+.ratnotes-note-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #202124;
+}
+
+.ratnotes-note-content {
+    font-size: 14px;
+    color: #5f6368;
+    line-height: 1.5;
+    max-height: 200px;
+    overflow: hidden;
+}
+
+.ratnotes-note-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 12px;
+}
+
+.ratnotes-label {
+    background: #f1f3f4;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    color: #5f6368;
+}
+
+/* Modal */
+.ratnotes-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100000;
+}
+
+.ratnotes-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.ratnotes-modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+}
+
+.ratnotes-modal-header {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.ratnotes-note-title-input {
+    flex: 1;
+    border: none;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 8px 0;
+}
+
+.ratnotes-note-title-input:focus {
+    outline: none;
+}
+
+.ratnotes-modal-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    color: #5f6368;
+}
+
+.ratnotes-modal-close:hover {
+    color: #202124;
+}
+
+.ratnotes-modal-body {
+    padding: 16px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.ratnotes-note-content-input {
+    width: 100%;
+    min-height: 200px;
+    border: none;
+    resize: none;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.ratnotes-note-content-input:focus {
+    outline: none;
+}
+
+.ratnotes-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-top: 1px solid #e0e0e0;
+    gap: 16px;
+}
+
+.ratnotes-color-picker {
+    display: flex;
+    gap: 8px;
+}
+
+.ratnotes-color-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.ratnotes-color-btn:hover {
+    transform: scale(1.1);
+}
+
+.ratnotes-color-btn.active {
+    border-color: #202124;
+}
+
+.ratnotes-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.ratnotes-actions .button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Loading */
+.ratnotes-loading {
+    display: none;
+    text-align: center;
+    padding: 40px;
+}
+
+.ratnotes-loading.is-active {
+    display: block;
+}
+
+/* Empty State */
+.ratnotes-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #5f6368;
+}
+
+.ratnotes-empty .dashicons {
+    font-size: 64px;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    color: #dadce0;
+}
+
+.ratnotes-empty h3 {
+    font-size: 18px;
+    margin-bottom: 8px;
+    color: #202124;
+}
+
+.ratnotes-empty p {
+    font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 782px) {
+    .ratnotes-app {
+        flex-direction: column;
+    }
+
+    .ratnotes-sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .ratnotes-nav {
+        display: flex;
+        padding: 8px 0;
+        overflow-x: auto;
+    }
+
+    .ratnotes-nav-item {
+        padding: 10px 16px;
+        white-space: nowrap;
+    }
+
+    .ratnotes-header {
+        flex-direction: column;
+    }
+
+    .ratnotes-search {
+        max-width: 100%;
+    }
+}
