@@ -43,9 +43,10 @@ class Main {
      */
     private function init_hooks() {
         add_action( 'init', array( $this, 'init' ) );
+        add_action( 'init', array( $this, 'register_post_type' ) );
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
+        add_action( 'admin_init', array( $this, 'handle_menu_redirect' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
-        add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
     }
 
     /**
@@ -57,18 +58,139 @@ class Main {
     }
 
     /**
+     * Register custom post type for notes.
+     */
+    public function register_post_type() {
+        $labels = array(
+            'name'               => _x( 'Notes', 'post type general name', 'ratnotes' ),
+            'singular_name'      => _x( 'Note', 'post type singular name', 'ratnotes' ),
+            'menu_name'          => _x( 'RatNotes', 'admin menu', 'ratnotes' ),
+            'add_new'            => _x( 'Add New', 'note', 'ratnotes' ),
+            'add_new_item'       => __( 'Add New Note', 'ratnotes' ),
+            'edit_item'          => __( 'Edit Note', 'ratnotes' ),
+            'new_item'           => __( 'New Note', 'ratnotes' ),
+            'view_item'          => __( 'View Note', 'ratnotes' ),
+            'search_items'       => __( 'Search Notes', 'ratnotes' ),
+            'not_found'          => __( 'No notes found.', 'ratnotes' ),
+            'not_found_in_trash' => __( 'No notes found in trash.', 'ratnotes' ),
+        );
+
+        $args = array(
+            'labels'          => $labels,
+            'public'          => false,
+            'show_ui'         => true,
+            'show_in_menu'    => false, // We use our own admin menu page.
+            'show_in_rest'    => true,
+            'rest_base'       => 'notes',
+            'rest_controller' => 'RatNotes\REST\Notes_Controller',
+            'capability_type' => 'post',
+            'map_meta_cap'    => true,
+            'hierarchical'    => false,
+            'supports'        => array( 'title', 'editor', 'custom-fields' ),
+            'has_archive'     => false,
+            'rewrite'         => false,
+            'query_var'       => false,
+        );
+
+        register_post_type( 'note', $args );
+
+        // Register meta fields.
+        register_meta( 'post', 'ratnotes_color', array(
+            'type'              => 'string',
+            'sanitize_callback' => 'sanitize_hex_color',
+            'show_in_rest'      => true,
+            'single'            => true,
+            'default'           => '#ffffff',
+        ) );
+
+        register_meta( 'post', 'ratnotes_is_pinned', array(
+            'type'              => 'boolean',
+            'sanitize_callback' => 'rest_sanitize_boolean',
+            'show_in_rest'      => true,
+            'single'            => true,
+            'default'           => false,
+        ) );
+
+        register_meta( 'post', 'ratnotes_is_archived', array(
+            'type'              => 'boolean',
+            'sanitize_callback' => 'rest_sanitize_boolean',
+            'show_in_rest'      => true,
+            'single'            => true,
+            'default'           => false,
+        ) );
+
+        register_meta( 'post', 'ratnotes_labels', array(
+            'type'              => 'array',
+            'sanitize_callback' => array( $this, 'sanitize_labels' ),
+            'show_in_rest'      => array(
+                'schema' => array(
+                    'type'  => 'array',
+                    'items' => array( 'type' => 'string' ),
+                ),
+            ),
+            'single'            => true,
+            'default'           => array(),
+        ) );
+    }
+
+    /**
+     * Sanitize labels array.
+     *
+     * @param mixed $labels The labels to sanitize.
+     * @return array
+     */
+    public function sanitize_labels( $labels ) {
+        if ( ! is_array( $labels ) ) {
+            return array();
+        }
+        return array_map( 'sanitize_text_field', $labels );
+    }
+
+    /**
      * Add admin menu page.
      */
     public function add_admin_menu() {
+        // Add menu page with empty callback - redirect handled by admin_init.
         add_menu_page(
             __( 'RatNotes', 'ratnotes' ),
             __( 'RatNotes', 'ratnotes' ),
             'manage_options',
             'ratnotes',
-            array( $this, 'render_admin_page' ),
+            '__return_empty_string',
             'dashicons-admin-notes',
             30
         );
+
+        // Add submenu page for "All Notes".
+        add_submenu_page(
+            'ratnotes',
+            __( 'All Notes', 'ratnotes' ),
+            __( 'All Notes', 'ratnotes' ),
+            'manage_options',
+            'ratnotes',
+            '__return_empty_string'
+        );
+
+        // Add submenu page for "Add New".
+        add_submenu_page(
+            'ratnotes',
+            __( 'Add New', 'ratnotes' ),
+            __( 'Add New', 'ratnotes' ),
+            'manage_options',
+            'post-new.php?post_type=note',
+            ''
+        );
+    }
+
+    /**
+     * Handle menu page redirect.
+     */
+    public function handle_menu_redirect() {
+        // Redirect ratnotes page to notes list.
+        if ( isset( $_GET['page'] ) && 'ratnotes' === $_GET['page'] ) {
+            wp_redirect( admin_url( 'edit.php?post_type=note' ) );
+            exit;
+        }
     }
 
     /**
@@ -77,7 +199,14 @@ class Main {
      * @param string $hook_suffix The current admin page.
      */
     public function enqueue_admin_assets( $hook_suffix ) {
-        if ( 'toplevel_page_ratnotes' !== $hook_suffix ) {
+        // Only load on note post type pages.
+        if ( 'edit.php' !== $hook_suffix && 'post.php' !== $hook_suffix && 'post-new.php' !== $hook_suffix ) {
+            return;
+        }
+
+        // Check if we're on the note post type.
+        $screen = get_current_screen();
+        if ( 'note' !== $screen->post_type ) {
             return;
         }
 
@@ -103,8 +232,9 @@ class Main {
             'ratnotes-admin',
             'ratnotesData',
             array(
-                'root'   => esc_url_raw( rest_url() ),
-                'nonce'  => wp_create_nonce( 'wp_rest' ),
+                'root'    => esc_url_raw( rest_url() ),
+                'nonce'   => wp_create_nonce( 'wp_rest' ),
+                'userId'  => get_current_user_id(),
                 'strings' => array(
                     'confirmDelete' => __( 'Are you sure you want to delete this note?', 'ratnotes' ),
                     'createNote'    => __( 'Create Note', 'ratnotes' ),
@@ -115,28 +245,11 @@ class Main {
     }
 
     /**
-     * Render admin page.
-     */
-    public function render_admin_page() {
-        include_once RATNOTES_PLUGIN_DIR . 'templates/admin-page.php';
-    }
-
-    /**
-     * Register REST API routes.
-     */
-    public function register_rest_routes() {
-        $controller = new REST\Notes_Controller();
-        $controller->register_routes();
-    }
-
-    /**
      * Activation hook.
      */
     public static function activate() {
-        // Create database tables.
-        Installer::install();
-
-        // Flush rewrite rules.
+        // Notes are stored as custom post types, no custom tables needed.
+        // Flush rewrite rules for the CPT.
         flush_rewrite_rules();
     }
 

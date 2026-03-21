@@ -36,8 +36,13 @@ class Autoloader {
         // Convert namespace separators to directory separators.
         $file_path = str_replace( '\\', DIRECTORY_SEPARATOR, $relative_class );
 
-        // Build the file path.
-        $file = RATNOTES_PLUGIN_DIR . 'includes/' . strtolower( str_replace( '_', '-', $file_path ) ) . '.php';
+        // Split into directory and class name.
+        $parts = explode( DIRECTORY_SEPARATOR, $file_path );
+        $class_file = array_pop( $parts );
+
+        // Build the file path with WordPress naming convention.
+        $prefix = empty( $parts ) ? 'class-ratnotes-' : 'class-';
+        $file = RATNOTES_PLUGIN_DIR . 'includes/' . implode( DIRECTORY_SEPARATOR, $parts ) . '/' . $prefix . strtolower( str_replace( '_', '-', $class_file ) ) . '.php';
 
         // Load the file if it exists.
         if ( file_exists( $file ) ) {

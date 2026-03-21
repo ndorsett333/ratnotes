@@ -30,31 +30,31 @@
         bindEvents: function() {
             // Navigation
             $('.ratnotes-nav-item').on('click', (e) => this.handleNavClick(e));
-            
+
             // Search
             $('#ratnotes-search').on('input', (e) => this.handleSearch(e));
-            
+
             // Create button
             $('#ratnotes-create-btn').on('click', () => this.openModal());
-            
+
             // Modal close
             $('#ratnotes-modal-close, .ratnotes-modal-overlay').on('click', () => this.closeModal());
-            
+
             // Save button
             $('#ratnotes-save-btn').on('click', () => this.saveNote());
-            
+
             // Delete button
             $('#ratnotes-delete-btn').on('click', () => this.deleteNote());
-            
+
             // Archive button
             $('#ratnotes-archive-btn').on('click', () => this.archiveNote());
-            
+
             // Pin button
             $('#ratnotes-pin-btn').on('click', () => this.togglePin());
-            
+
             // Color picker
             $('.ratnotes-color-btn').on('click', (e) => this.selectColor(e));
-            
+
             // Keyboard shortcuts
             $(document).on('keydown', (e) => this.handleKeyboard(e));
         },
@@ -64,22 +64,31 @@
          */
         loadNotes: async function() {
             if (this.isLoading) return;
-            
+
             this.isLoading = true;
             $('#ratnotes-loading').addClass('is-active');
-            
+
             try {
-                const response = await fetch(
-                    `${ratnotesData.root}ratnotes/v1/notes?status=${this.currentStatus}`,
-                    {
-                        headers: {
-                            'X-WP-Nonce': ratnotesData.nonce
-                        }
+                // Build query params.
+                let url = `${ratnotesData.root}wp/v2/notes?per_page=100&author=${ratnotesData.userId}`;
+
+                if (this.currentStatus === 'trash') {
+                    url += '&status=trash';
+                } else if (this.currentStatus === 'archived') {
+                    url += '&meta_key=ratnotes_is_archived&meta_value=1';
+                } else {
+                    // Active: not archived, not trashed.
+                    url += '&meta_key=ratnotes_is_archived&meta_value=0';
+                }
+
+                const response = await fetch(url, {
+                    headers: {
+                        'X-WP-Nonce': ratnotesData.nonce
                     }
-                );
-                
+                });
+
                 if (!response.ok) throw new Error('Failed to load notes');
-                
+
                 this.notes = await response.json();
                 this.renderNotes();
             } catch (error) {
@@ -96,23 +105,25 @@
          */
         renderNotes: function() {
             const $grid = $('#ratnotes-notes-grid');
-            
+
             if (this.notes.length === 0) {
                 $grid.html(this.renderEmptyState());
                 return;
             }
-            
+
             // Sort: pinned first
             const sortedNotes = [...this.notes].sort((a, b) => {
-                if (a.is_pinned && !b.is_pinned) return -1;
-                if (!a.is_pinned && b.is_pinned) return 1;
-                return new Date(b.created_at) - new Date(a.created_at);
+                const aPinned = a.meta?.ratnotes_is_pinned || false;
+                const bPinned = b.meta?.ratnotes_is_pinned || false;
+                if (aPinned && !bPinned) return -1;
+                if (!aPinned && bPinned) return 1;
+                return new Date(b.date) - new Date(a.date);
             });
-            
+
             $grid.html(
                 sortedNotes.map(note => this.renderNoteCard(note)).join('')
             );
-            
+
             // Bind card click events
             $('.ratnotes-note-card').on('click', (e) => {
                 const noteId = $(e.currentTarget).data('id');
@@ -124,18 +135,19 @@
          * Render a single note card.
          */
         renderNoteCard: function(note) {
-            const pinnedClass = note.is_pinned ? 'pinned' : '';
-            const labels = note.labels.map(label => 
+            const pinnedClass = note.meta?.ratnotes_is_pinned ? 'pinned' : '';
+            const color = note.meta?.ratnotes_color || '#ffffff';
+            const labels = (note.meta?.ratnotes_labels || []).map(label =>
                 `<span class="ratnotes-label">${this.escapeHtml(label)}</span>`
             ).join('');
-            
+
             return `
-                <div class="ratnotes-note-card ${pinnedClass}" 
-                     data-id="${note.id}" 
-                     style="background-color: ${note.color}">
-                    ${note.title ? `<div class="ratnotes-note-title">${this.escapeHtml(note.title)}</div>` : ''}
-                    <div class="ratnotes-note-content">${this.escapeHtml(note.content)}</div>
-                    ${note.labels.length > 0 ? `<div class="ratnotes-note-labels">${labels}</div>` : ''}
+                <div class="ratnotes-note-card ${pinnedClass}"
+                     data-id="${note.id}"
+                     style="background-color: ${color}">
+                    ${note.title?.rendered ? `<div class="ratnotes-note-title">${this.escapeHtml(note.title.rendered)}</div>` : ''}
+                    <div class="ratnotes-note-content">${this.escapeHtml(note.content.rendered)}</div>
+                    ${labels ? `<div class="ratnotes-note-labels">${labels}</div>` : ''}
                 </div>
             `;
         },
@@ -161,9 +173,9 @@
                     text: 'Deleted notes will appear here for 30 days'
                 }
             };
-            
+
             const msg = messages[this.currentStatus];
-            
+
             return `
                 <div class="ratnotes-empty">
                     <span class="dashicons ${msg.icon}"></span>
@@ -178,18 +190,19 @@
          */
         openModal: function(noteId = null) {
             this.currentNote = noteId ? this.notes.find(n => n.id === noteId) : null;
-            
+
             // Reset modal
             $('#ratnotes-note-title').val('');
             $('#ratnotes-note-content').val('');
             $('.ratnotes-color-btn').removeClass('active');
-            
+
             if (this.currentNote) {
-                $('#ratnotes-note-title').val(this.currentNote.title);
-                $('#ratnotes-note-content').val(this.currentNote.content);
-                $(`.ratnotes-color-btn[data-color="${this.currentNote.color}"]`).addClass('active');
+                $('#ratnotes-note-title').val(this.currentNote.title?.rendered || '');
+                $('#ratnotes-note-content').val(this.currentNote.content?.rendered || '');
+                const color = this.currentNote.meta?.ratnotes_color || '#ffffff';
+                $(`.ratnotes-color-btn[data-color="${color}"]`).addClass('active');
             }
-            
+
             $('#ratnotes-modal').fadeIn(200);
             $('#ratnotes-note-title').focus();
         },
@@ -209,34 +222,38 @@
             const title = $('#ratnotes-note-title').val().trim();
             const content = $('#ratnotes-note-content').val().trim();
             const color = $('.ratnotes-color-btn.active').data('color') || '#ffffff';
-            
+
             if (!title && !content) {
                 this.closeModal();
                 return;
             }
-            
+
             try {
-                const url = this.currentNote 
-                    ? `${ratnotesData.root}ratnotes/v1/notes/${this.currentNote.id}`
-                    : `${ratnotesData.root}ratnotes/v1/notes`;
-                
-                const method = this.currentNote ? 'PUT' : 'POST';
-                
+                const url = this.currentNote
+                    ? `${ratnotesData.root}wp/v2/notes/${this.currentNote.id}`
+                    : `${ratnotesData.root}wp/v2/notes`;
+
+                const method = this.currentNote ? 'POST' : 'POST';
+
+                const body = new FormData();
+                body.append('title', title);
+                body.append('content', content);
+                body.append('meta[ratnotes_color]', color);
+
+                if (this.currentNote) {
+                    body.append('_method', 'PUT');
+                }
+
                 const response = await fetch(url, {
                     method: method,
                     headers: {
-                        'X-WP-Nonce': ratnotesData.nonce,
-                        'Content-Type': 'application/json'
+                        'X-WP-Nonce': ratnotesData.nonce
                     },
-                    body: JSON.stringify({
-                        title: title,
-                        content: content,
-                        color: color
-                    })
+                    body: body
                 });
-                
+
                 if (!response.ok) throw new Error('Failed to save note');
-                
+
                 this.closeModal();
                 this.loadNotes();
             } catch (error) {
@@ -250,14 +267,14 @@
          */
         deleteNote: async function() {
             if (!this.currentNote) return;
-            
+
             if (!confirm(ratnotesData.strings.confirmDelete)) return;
-            
+
             try {
                 const force = this.currentStatus === 'trash';
-                
+
                 const response = await fetch(
-                    `${ratnotesData.root}ratnotes/v1/notes/${this.currentNote.id}?force=${force}`,
+                    `${ratnotesData.root}wp/v2/notes/${this.currentNote.id}?force=${force}`,
                     {
                         method: 'DELETE',
                         headers: {
@@ -265,9 +282,9 @@
                         }
                     }
                 );
-                
+
                 if (!response.ok) throw new Error('Failed to delete note');
-                
+
                 this.closeModal();
                 this.loadNotes();
             } catch (error) {
@@ -281,24 +298,27 @@
          */
         archiveNote: async function() {
             if (!this.currentNote) return;
-            
+
             try {
+                const isArchived = this.currentNote.meta?.ratnotes_is_archived || false;
+
+                const body = new FormData();
+                body.append('meta[ratnotes_is_archived]', isArchived ? false : true);
+                body.append('_method', 'PUT');
+
                 const response = await fetch(
-                    `${ratnotesData.root}ratnotes/v1/notes/${this.currentNote.id}`,
+                    `${ratnotesData.root}wp/v2/notes/${this.currentNote.id}`,
                     {
-                        method: 'PUT',
+                        method: 'POST',
                         headers: {
-                            'X-WP-Nonce': ratnotesData.nonce,
-                            'Content-Type': 'application/json'
+                            'X-WP-Nonce': ratnotesData.nonce
                         },
-                        body: JSON.stringify({
-                            is_archived: this.currentStatus === 'archived' ? 0 : 1
-                        })
+                        body: body
                     }
                 );
-                
+
                 if (!response.ok) throw new Error('Failed to archive note');
-                
+
                 this.closeModal();
                 this.loadNotes();
             } catch (error) {
@@ -312,25 +332,28 @@
          */
         togglePin: async function() {
             if (!this.currentNote) return;
-            
+
             try {
+                const isPinned = this.currentNote.meta?.ratnotes_is_pinned || false;
+
+                const body = new FormData();
+                body.append('meta[ratnotes_is_pinned]', !isPinned);
+                body.append('_method', 'PUT');
+
                 const response = await fetch(
-                    `${ratnotesData.root}ratnotes/v1/notes/${this.currentNote.id}`,
+                    `${ratnotesData.root}wp/v2/notes/${this.currentNote.id}`,
                     {
-                        method: 'PUT',
+                        method: 'POST',
                         headers: {
-                            'X-WP-Nonce': ratnotesData.nonce,
-                            'Content-Type': 'application/json'
+                            'X-WP-Nonce': ratnotesData.nonce
                         },
-                        body: JSON.stringify({
-                            is_pinned: !this.currentNote.is_pinned
-                        })
+                        body: body
                     }
                 );
-                
+
                 if (!response.ok) throw new Error('Failed to update pin status');
-                
-                this.currentNote.is_pinned = !this.currentNote.is_pinned;
+
+                this.currentNote.meta.ratnotes_is_pinned = !isPinned;
                 this.loadNotes();
             } catch (error) {
                 console.error('Error toggling pin:', error);
@@ -361,11 +384,13 @@
          */
         handleSearch: function(e) {
             const query = e.target.value.trim();
-            const filtered = this.notes.filter(note => 
-                note.title.toLowerCase().includes(query.toLowerCase()) ||
-                note.content.toLowerCase().includes(query.toLowerCase())
-            );
-            this.renderNotes();
+            const filtered = this.notes.filter(note => {
+                const title = note.title?.rendered || '';
+                const content = note.content?.rendered || '';
+                return title.toLowerCase().includes(query.toLowerCase()) ||
+                    content.toLowerCase().includes(query.toLowerCase());
+            });
+            this.renderNotes(filtered);
         },
 
         /**
@@ -376,7 +401,7 @@
             if (e.key === 'Escape' && $('#ratnotes-modal').is(':visible')) {
                 this.closeModal();
             }
-            
+
             // Ctrl/Cmd + N to create new note
             if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
                 e.preventDefault();
