@@ -81,8 +81,7 @@ class Main {
             'show_ui'         => true,
             'show_in_menu'    => false, // We use our own admin menu page.
             'show_in_rest'    => true,
-            'rest_base'       => 'notes',
-            'rest_controller' => 'RatNotes\REST\Notes_Controller',
+            'rest_base'       => 'ratnotes',
             'capability_type' => 'post',
             'map_meta_cap'    => true,
             'hierarchical'    => false,
@@ -92,7 +91,7 @@ class Main {
             'query_var'       => false,
         );
 
-        register_post_type( 'note', $args );
+        register_post_type( 'ratnote', $args );
 
         // Register meta fields.
         register_meta( 'post', 'ratnotes_color', array(
@@ -171,14 +170,14 @@ class Main {
             '__return_empty_string'
         );
 
-        // Add submenu page for "Add New".
+        // Add submenu page for "Add New" - redirect handled by admin_init.
         add_submenu_page(
             'ratnotes',
             __( 'Add New', 'ratnotes' ),
             __( 'Add New', 'ratnotes' ),
             'manage_options',
-            'post-new.php?post_type=note',
-            ''
+            'ratnotes-new',
+            '__return_empty_string'
         );
     }
 
@@ -188,7 +187,13 @@ class Main {
     public function handle_menu_redirect() {
         // Redirect ratnotes page to notes list.
         if ( isset( $_GET['page'] ) && 'ratnotes' === $_GET['page'] ) {
-            wp_redirect( admin_url( 'edit.php?post_type=note' ) );
+            wp_redirect( admin_url( 'edit.php?post_type=ratnote' ) );
+            exit;
+        }
+
+        // Redirect ratnotes-new page to new note editor.
+        if ( isset( $_GET['page'] ) && 'ratnotes-new' === $_GET['page'] ) {
+            wp_redirect( admin_url( 'post-new.php?post_type=ratnote' ) );
             exit;
         }
     }
@@ -204,9 +209,9 @@ class Main {
             return;
         }
 
-        // Check if we're on the note post type.
+        // Check if we're on the ratnote post type.
         $screen = get_current_screen();
-        if ( 'note' !== $screen->post_type ) {
+        if ( 'ratnote' !== $screen->post_type ) {
             return;
         }
 

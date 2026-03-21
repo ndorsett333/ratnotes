@@ -126,7 +126,7 @@ class Notes_Controller extends WP_REST_Controller {
 		$user_id = get_current_user_id();
 
 		$args = array(
-			'post_type'      => 'note',
+			'post_type'      => 'ratnote',
 			'post_status'    => 'any',
 			'author'         => $user_id,
 			'posts_per_page' => $request->get_param( 'per_page' ),
@@ -207,7 +207,7 @@ class Notes_Controller extends WP_REST_Controller {
 		$note_id = $request->get_param( 'id' );
 		$post    = get_post( $note_id );
 
-		if ( ! $post || 'note' !== $post->post_type ) {
+		if ( ! $post || 'ratnote' !== $post->post_type ) {
 			return new WP_Error( 'not_found', __( 'Note not found.', 'ratnotes' ), array( 'status' => 404 ) );
 		}
 
@@ -229,7 +229,7 @@ class Notes_Controller extends WP_REST_Controller {
 		$user_id = get_current_user_id();
 
 		$post_data = array(
-			'post_type'    => 'note',
+			'post_type'    => 'ratnote',
 			'post_status'  => 'publish',
 			'post_author'  => $user_id,
 			'post_title'   => sanitize_text_field( $request->get_param( 'title' ) ),
@@ -264,7 +264,7 @@ class Notes_Controller extends WP_REST_Controller {
 		$note_id = $request->get_param( 'id' );
 		$post    = get_post( $note_id );
 
-		if ( ! $post || 'note' !== $post->post_type ) {
+		if ( ! $post || 'ratnote' !== $post->post_type ) {
 			return new WP_Error( 'not_found', __( 'Note not found.', 'ratnotes' ), array( 'status' => 404 ) );
 		}
 
@@ -320,7 +320,7 @@ class Notes_Controller extends WP_REST_Controller {
 		$force   = $request->get_param( 'force' );
 		$post    = get_post( $note_id );
 
-		if ( ! $post || 'note' !== $post->post_type ) {
+		if ( ! $post || 'ratnote' !== $post->post_type ) {
 			return new WP_Error( 'not_found', __( 'Note not found.', 'ratnotes' ), array( 'status' => 404 ) );
 		}
 
@@ -355,7 +355,7 @@ class Notes_Controller extends WP_REST_Controller {
 		$note_id = $request->get_param( 'id' );
 		$post    = get_post( $note_id );
 
-		if ( ! $post || 'note' !== $post->post_type ) {
+		if ( ! $post || 'ratnote' !== $post->post_type ) {
 			return new WP_Error( 'not_found', __( 'Note not found.', 'ratnotes' ), array( 'status' => 404 ) );
 		}
 
