@@ -44,9 +44,15 @@ class Main {
     private function init_hooks() {
         add_action( 'init', array( $this, 'init' ) );
         add_action( 'init', array( $this, 'register_post_type' ) );
+        add_action( 'init', array( $this, 'add_rewrite_rules' ) );
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
         add_action( 'admin_init', array( $this, 'handle_menu_redirect' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
+        add_action( 'template_include', array( $this, 'load_archive_template' ) );
+        add_action( 'admin_bar_menu', array( $this, 'add_admin_bar_link' ), 100 );
+        
+        // Initialize frontend shortcode.
+        add_action( 'init', array( 'RatNotes\Shortcode', 'init' ) );
     }
 
     /**
@@ -143,6 +149,30 @@ class Main {
             return array();
         }
         return array_map( 'sanitize_text_field', $labels );
+    }
+
+    /**
+     * Add rewrite rules for RatNotes archive page.
+     */
+    public function add_rewrite_rules() {
+        add_rewrite_rule( '^ratnotes-archive/?$', 'index.php?ratnotes_archive=1', 'top' );
+        add_rewrite_tag( '%ratnotes_archive%', '1' );
+    }
+
+    /**
+     * Load archive page template.
+     *
+     * @param string $template The template to load.
+     * @return string
+     */
+    public function load_archive_template( $template ) {
+        if ( get_query_var( 'ratnotes_archive' ) ) {
+            $archive_template = RATNOTES_PLUGIN_DIR . 'templates/archive-page.php';
+            if ( file_exists( $archive_template ) ) {
+                return $archive_template;
+            }
+        }
+        return $template;
     }
 
     /**
@@ -254,7 +284,7 @@ class Main {
      */
     public static function activate() {
         // Notes are stored as custom post types, no custom tables needed.
-        // Flush rewrite rules for the CPT.
+        // Flush rewrite rules for the CPT and archive page.
         flush_rewrite_rules();
     }
 
@@ -264,5 +294,27 @@ class Main {
     public static function deactivate() {
         // Flush rewrite rules.
         flush_rewrite_rules();
+    }
+
+    /**
+     * Add archive page link to admin bar.
+     *
+     * @param WP_Admin_Bar $wp_admin_bar The admin bar object.
+     */
+    public function add_admin_bar_link( $wp_admin_bar ) {
+        if ( ! is_user_logged_in() ) {
+            return;
+        }
+
+        $wp_admin_bar->add_node(
+            array(
+                'id'    => 'ratnotes-archive',
+                'title' => '<span class="dashicons dashicons-admin-notes"></span> ' . __( 'My Notes', 'ratnotes' ),
+                'href'  => home_url( '/ratnotes-archive' ),
+                'meta'  => array(
+                    'class' => 'ratnotes-admin-bar-link',
+                ),
+            )
+        );
     }
 }

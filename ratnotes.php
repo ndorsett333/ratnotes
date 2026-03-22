@@ -35,6 +35,9 @@ RatNotes\Autoloader::register();
 // Main plugin class.
 require_once RATNOTES_PLUGIN_DIR . 'includes/class-ratnotes.php';
 
+// Shortcode class.
+require_once RATNOTES_PLUGIN_DIR . 'includes/class-ratnotes-shortcode.php';
+
 /**
  * Returns the main instance of the RatNotes plugin.
  *

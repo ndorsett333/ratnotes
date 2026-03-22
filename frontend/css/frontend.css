@@ -1,0 +1,460 @@
+/**
+ * RatNotes Frontend Styles
+ *
+ * @package RatNotes
+ */
+
+.ratnotes-frontend {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	max-width: 1400px;
+	margin: 0 auto;
+	padding: 20px;
+	background-color: #1e1e2e;
+	color: #cdd6f4;
+	border-radius: 12px;
+}
+
+/* Navigation */
+.ratnotes-frontend-nav {
+	display: flex;
+	gap: 10px;
+	margin-bottom: 20px;
+	border-bottom: 1px solid #45475a;
+	padding-bottom: 10px;
+}
+
+.ratnotes-frontend-nav-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 16px;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	border-radius: 20px;
+	font-size: 14px;
+	color: #a6adc8;
+	transition: background-color 0.2s, color 0.2s;
+}
+
+.ratnotes-frontend-nav-item:hover {
+	background-color: #313244;
+	color: #cdd6f4;
+}
+
+.ratnotes-frontend-nav-item.active {
+	background-color: #45475a;
+	color: #89b4fa;
+}
+
+.ratnotes-frontend-nav-item .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+}
+
+/* Header */
+.ratnotes-frontend-header {
+	display: flex;
+	gap: 15px;
+	margin-bottom: 20px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.ratnotes-frontend-search {
+	flex: 1;
+	min-width: 200px;
+}
+
+.ratnotes-frontend-search-input {
+	width: 100%;
+	padding: 12px 16px;
+	border: 1px solid #45475a;
+	border-radius: 8px;
+	font-size: 14px;
+	background-color: #313244;
+	color: #cdd6f4;
+	transition: background-color 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.ratnotes-frontend-search-input:focus {
+	outline: none;
+	background-color: #45475a;
+	border-color: #89b4fa;
+	box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.2);
+}
+
+.ratnotes-frontend-search-input::placeholder {
+	color: #6c7086;
+}
+
+.ratnotes-frontend-create-btn {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	background-color: #89b4fa;
+	color: #1e1e2e;
+	border: none;
+}
+
+.ratnotes-frontend-create-btn:hover {
+	background-color: #b4befe;
+}
+
+/* Grid */
+.ratnotes-frontend-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 16px;
+}
+
+.ratnotes-frontend-grid[data-columns="2"] {
+	grid-template-columns: repeat(2, 1fr);
+}
+
+.ratnotes-frontend-grid[data-columns="4"] {
+	grid-template-columns: repeat(4, 1fr);
+}
+
+.ratnotes-frontend-grid[data-columns="5"] {
+	grid-template-columns: repeat(5, 1fr);
+}
+
+/* Loading */
+.ratnotes-frontend-loading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 20px;
+	color: #a6adc8;
+}
+
+.ratnotes-frontend-loading .spinner {
+	float: none;
+	margin-bottom: 15px;
+}
+
+/* Note Card */
+.ratnotes-frontend-note {
+	background-color: #313244;
+	border: 1px solid #45475a;
+	border-radius: 8px;
+	padding: 16px;
+	cursor: pointer;
+	transition: box-shadow 0.2s, transform 0.1s, background-color 0.2s;
+	position: relative;
+	min-height: 100px;
+	color: #cdd6f4;
+}
+
+.ratnotes-frontend-note:hover {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	background-color: #45475a;
+}
+
+.ratnotes-frontend-note:active {
+	transform: scale(0.99);
+}
+
+.ratnotes-frontend-note.pinned {
+	border: 2px solid #89b4fa;
+}
+
+.ratnotes-frontend-note.pinned::before {
+	content: "";
+	position: absolute;
+	top: -2px;
+	right: -2px;
+	width: 20px;
+	height: 20px;
+	background-color: #89b4fa;
+	border-radius: 0 8px 0 8px;
+}
+
+.ratnotes-frontend-note.pinned::after {
+	content: "";
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	width: 12px;
+	height: 12px;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231e1e2e'%3E%3Cpath d='M16 12V4H8v8l-2 2v2h5v6l1 2 1-2v-6h5v-2l-2-2z'/%3E%3C/svg%3E");
+	background-size: contain;
+}
+
+.ratnotes-frontend-note-title {
+	font-size: 16px;
+	font-weight: 600;
+	margin-bottom: 8px;
+	color: #cdd6f4;
+	line-height: 1.4;
+}
+
+.ratnotes-frontend-note:empty + .ratnotes-frontend-note-content {
+	margin-top: 0;
+}
+
+.ratnotes-frontend-note-content {
+	font-size: 14px;
+	color: #bac2de;
+	line-height: 1.6;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+}
+
+.ratnotes-frontend-note-labels {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 12px;
+}
+
+.ratnotes-frontend-label {
+	display: inline-block;
+	padding: 4px 10px;
+	background-color: rgba(255, 255, 255, 0.1);
+	border-radius: 12px;
+	font-size: 12px;
+	color: #a6adc8;
+}
+
+/* Empty State */
+.ratnotes-frontend-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 60px 20px;
+	color: #a6adc8;
+	grid-column: 1 / -1;
+}
+
+.ratnotes-frontend-empty .dashicons {
+	font-size: 48px;
+	width: 48px;
+	height: 48px;
+	margin-bottom: 16px;
+	opacity: 0.5;
+}
+
+.ratnotes-frontend-empty h3 {
+	margin: 0 0 8px;
+	font-size: 18px;
+	font-weight: 500;
+	color: #cdd6f4;
+}
+
+.ratnotes-frontend-empty p {
+	margin: 0;
+	font-size: 14px;
+}
+
+/* Modal */
+.ratnotes-frontend-modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 100000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.ratnotes-frontend-modal-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: rgba(0, 0, 0, 0.7);
+}
+
+.ratnotes-frontend-modal-content {
+	position: relative;
+	background-color: #1e1e2e;
+	border-radius: 8px;
+	width: 90%;
+	max-width: 600px;
+	max-height: 90vh;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+	border: 1px solid #45475a;
+}
+
+.ratnotes-frontend-modal-header {
+	display: flex;
+	align-items: center;
+	padding: 16px;
+	border-bottom: 1px solid #45475a;
+}
+
+.ratnotes-frontend-note-title {
+	flex: 1;
+	border: none;
+	font-size: 18px;
+	font-weight: 600;
+	padding: 8px;
+	margin-right: 10px;
+	background-color: transparent;
+	color: #cdd6f4;
+}
+
+.ratnotes-frontend-note-title:focus {
+	outline: none;
+}
+
+.ratnotes-frontend-modal-close {
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	padding: 8px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background-color 0.2s;
+	color: #a6adc8;
+}
+
+.ratnotes-frontend-modal-close:hover {
+	background-color: #313244;
+	color: #cdd6f4;
+}
+
+.ratnotes-frontend-modal-body {
+	flex: 1;
+	padding: 16px;
+	overflow-y: auto;
+}
+
+.ratnotes-frontend-note-content {
+	width: 100%;
+	min-height: 200px;
+	border: none;
+	resize: vertical;
+	font-size: 14px;
+	line-height: 1.6;
+	padding: 8px;
+	font-family: inherit;
+	background-color: transparent;
+	color: #bac2de;
+}
+
+.ratnotes-frontend-note-content:focus {
+	outline: none;
+}
+
+.ratnotes-frontend-note-content::placeholder {
+	color: #6c7086;
+}
+
+.ratnotes-frontend-modal-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 12px 16px;
+	border-top: 1px solid #45475a;
+	background-color: #313244;
+}
+
+.ratnotes-frontend-color-picker {
+	display: flex;
+	gap: 6px;
+}
+
+.ratnotes-frontend-color-btn {
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	border: 2px solid #45475a;
+	cursor: pointer;
+	transition: transform 0.1s, border-color 0.2s;
+}
+
+.ratnotes-frontend-color-btn:hover {
+	transform: scale(1.1);
+}
+
+.ratnotes-frontend-color-btn.active {
+	border-color: #89b4fa;
+	box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.3);
+}
+
+.ratnotes-frontend-actions {
+	display: flex;
+	gap: 8px;
+}
+
+.ratnotes-frontend-actions .button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 8px 12px;
+	background-color: #45475a;
+	color: #cdd6f4;
+	border: none;
+}
+
+.ratnotes-frontend-actions .button:hover {
+	background-color: #585b70;
+}
+
+.ratnotes-frontend-actions .button-primary {
+	background-color: #89b4fa;
+	color: #1e1e2e;
+}
+
+.ratnotes-frontend-actions .button-primary:hover {
+	background-color: #b4befe;
+}
+
+.ratnotes-frontend-actions .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+	.ratnotes-frontend-grid[data-columns="5"],
+	.ratnotes-frontend-grid[data-columns="4"] {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+@media (max-width: 768px) {
+	.ratnotes-frontend-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.ratnotes-frontend-header {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.ratnotes-frontend-nav {
+		flex-wrap: wrap;
+	}
+
+	.ratnotes-frontend-modal-content {
+		width: 95%;
+		max-height: 95vh;
+	}
+}
+
+@media (max-width: 480px) {
+	.ratnotes-frontend-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.ratnotes-frontend-actions {
+		flex-wrap: wrap;
+		justify-content: flex-end;
+	}
+}

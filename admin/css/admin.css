@@ -317,6 +317,18 @@
     font-size: 14px;
 }
 
+/* Admin Bar Link */
+#wpadminbar #wp-admin-bar-ratnotes-archive .ab-item {
+    padding: 3px 8px;
+}
+
+#wpadminbar #wp-admin-bar-ratnotes-archive .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    line-height: 1.4;
+}
+
 /* Responsive */
 @media (max-width: 782px) {
     .ratnotes-app {
