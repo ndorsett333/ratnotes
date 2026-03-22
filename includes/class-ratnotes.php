@@ -167,6 +167,11 @@ class Main {
      */
     public function load_archive_template( $template ) {
         if ( get_query_var( 'ratnotes_archive' ) ) {
+            // Only allow administrators to access the archive page.
+            if ( ! current_user_can( 'manage_options' ) ) {
+                wp_redirect( home_url() );
+                exit;
+            }
             $archive_template = RATNOTES_PLUGIN_DIR . 'templates/archive-page.php';
             if ( file_exists( $archive_template ) ) {
                 return $archive_template;
@@ -302,7 +307,7 @@ class Main {
      * @param WP_Admin_Bar $wp_admin_bar The admin bar object.
      */
     public function add_admin_bar_link( $wp_admin_bar ) {
-        if ( ! is_user_logged_in() ) {
+        if ( ! is_user_logged_in() || ! current_user_can( 'manage_options' ) ) {
             return;
         }
 
