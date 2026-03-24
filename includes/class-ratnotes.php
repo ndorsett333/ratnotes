@@ -109,19 +109,27 @@ class Main {
         ) );
 
         register_meta( 'post', 'ratnotes_is_pinned', array(
-            'type'              => 'boolean',
-            'sanitize_callback' => 'rest_sanitize_boolean',
+            'type'              => 'string',
+            'sanitize_callback' => array( $this, 'sanitize_boolean_string' ),
             'show_in_rest'      => true,
             'single'            => true,
-            'default'           => false,
+            'default'           => '0',
         ) );
 
         register_meta( 'post', 'ratnotes_is_archived', array(
-            'type'              => 'boolean',
-            'sanitize_callback' => 'rest_sanitize_boolean',
+            'type'              => 'string',
+            'sanitize_callback' => array( $this, 'sanitize_boolean_string' ),
             'show_in_rest'      => true,
             'single'            => true,
-            'default'           => false,
+            'default'           => '0',
+        ) );
+
+        register_meta( 'post', 'ratnotes_is_trashed', array(
+            'type'              => 'string',
+            'sanitize_callback' => array( $this, 'sanitize_boolean_string' ),
+            'show_in_rest'      => true,
+            'single'            => true,
+            'default'           => '0',
         ) );
 
         register_meta( 'post', 'ratnotes_labels', array(
@@ -136,6 +144,16 @@ class Main {
             'single'            => true,
             'default'           => array(),
         ) );
+    }
+
+    /**
+     * Sanitize boolean to string '0' or '1'.
+     *
+     * @param mixed $value The value to sanitize.
+     * @return string '0' or '1'
+     */
+    public function sanitize_boolean_string( $value ) {
+        return rest_sanitize_boolean( $value ) ? '1' : '0';
     }
 
     /**

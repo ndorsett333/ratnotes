@@ -189,6 +189,31 @@ class Shortcode {
 	}
 
 	/**
+	 * Strip Gutenberg block markup from content.
+	 *
+	 * @param string $content The content with block markup.
+	 * @return string Plain text content.
+	 */
+	public static function strip_block_markup( $content ) {
+		// Remove block comments like <!-- wp:paragraph --> and <!-- /wp:paragraph -->
+		$content = preg_replace( '/<!--\s*\/?wp:[^>]*-->/', '', $content );
+
+		// Convert paragraph tags to double newlines (preserves spacing between paragraphs)
+		$content = preg_replace( '/<\/p>\s*<p>/', "\n\n", $content );
+		$content = preg_replace( '/<br\s*\/?>/', "\n", $content );
+
+		// Strip remaining HTML tags
+		$content = wp_strip_all_tags( $content );
+
+		// Normalize Windows line endings to Unix, but preserve multiple newlines
+		$content = str_replace( "\r\n", "\n", $content );
+		$content = str_replace( "\r", "\n", $content );
+		$content = trim( $content );
+
+		return $content;
+	}
+
+	/**
 	 * AJAX: Get notes.
 	 */
 	public static function ajax_get_notes() {
@@ -219,9 +244,16 @@ class Shortcode {
 				'compare' => '=',
 			);
 			$args['meta_query'][] = array(
-				'key'     => 'ratnotes_is_trashed',
-				'value'   => '0',
-				'compare' => '!=',
+				'relation' => 'OR',
+				array(
+					'key'     => 'ratnotes_is_trashed',
+					'value'   => '0',
+					'compare' => '=',
+				),
+				array(
+					'key'     => 'ratnotes_is_trashed',
+					'compare' => 'NOT EXISTS',
+				),
 			);
 		} else {
 			// Active: not archived (or meta doesn't exist) AND not trashed (or meta doesn't exist).
@@ -263,7 +295,7 @@ class Shortcode {
 			$notes[] = array(
 				'id'          => (int) $post->ID,
 				'title'       => $post->post_title,
-				'content'     => $post->post_content,
+				'content'     => self::strip_block_markup( $post->post_content ),
 				'color'       => get_post_meta( $post->ID, 'ratnotes_color', true ) ?: '#ffffff',
 				'is_pinned'   => (bool) get_post_meta( $post->ID, 'ratnotes_is_pinned', true ),
 				'is_archived' => (bool) get_post_meta( $post->ID, 'ratnotes_is_archived', true ),
@@ -310,8 +342,9 @@ class Shortcode {
 			wp_update_post( $post_data );
 
 			update_post_meta( $note_id, 'ratnotes_color', $color );
-			update_post_meta( $note_id, 'ratnotes_is_pinned', $is_pinned ? 1 : 0 );
-			update_post_meta( $note_id, 'ratnotes_is_archived', $is_archived ? 1 : 0 );
+			update_post_meta( $note_id, 'ratnotes_is_pinned', $is_pinned ? '1' : '0' );
+			update_post_meta( $note_id, 'ratnotes_is_archived', $is_archived ? '1' : '0' );
+			update_post_meta( $note_id, 'ratnotes_is_trashed', '0' );
 		} else {
 			// Create new note.
 			$post_data = array(
@@ -329,9 +362,9 @@ class Shortcode {
 			}
 
 			update_post_meta( $note_id, 'ratnotes_color', $color );
-			update_post_meta( $note_id, 'ratnotes_is_pinned', $is_pinned ? 1 : 0 );
-			update_post_meta( $note_id, 'ratnotes_is_archived', $is_archived ? 1 : 0 );
-			update_post_meta( $note_id, 'ratnotes_is_trashed', 0 );
+			update_post_meta( $note_id, 'ratnotes_is_pinned', $is_pinned ? '1' : '0' );
+			update_post_meta( $note_id, 'ratnotes_is_archived', $is_archived ? '1' : '0' );
+			update_post_meta( $note_id, 'ratnotes_is_trashed', '0' );
 		}
 
 		$post = get_post( $note_id );
@@ -339,7 +372,7 @@ class Shortcode {
 			array(
 				'id'          => (int) $post->ID,
 				'title'       => $post->post_title,
-				'content'     => $post->post_content,
+				'content'     => self::strip_block_markup( $post->post_content ),
 				'color'       => get_post_meta( $post->ID, 'ratnotes_color', true ) ?: '#ffffff',
 				'is_pinned'   => (bool) get_post_meta( $post->ID, 'ratnotes_is_pinned', true ),
 				'is_archived' => (bool) get_post_meta( $post->ID, 'ratnotes_is_archived', true ),

@@ -42,8 +42,11 @@
             // Create button
             this.$container.on('click', '.ratnotes-frontend-create-btn', () => this.openModal());
 
-            // Modal close
-            this.$container.on('click', '.ratnotes-frontend-modal-close, .ratnotes-frontend-modal-overlay', () => this.closeModal());
+            // Modal close (X button) - saves note
+            this.$container.on('click', '.ratnotes-frontend-modal-close', () => this.saveNote());
+
+            // Clicking overlay - saves note
+            this.$container.on('click', '.ratnotes-frontend-modal-overlay', () => this.saveNote());
 
             // Save button
             this.$container.on('click', '.ratnotes-frontend-save-btn', () => this.saveNote());
@@ -140,11 +143,15 @@
             const labels = (note.labels || []).map(label =>
                 `<span class="ratnotes-frontend-label">${this.escapeHtml(label)}</span>`
             ).join('');
+            // Only apply inline background color if it's not white (let CSS handle default)
+            const bgStyle = note.color && note.color.toLowerCase() !== '#ffffff' 
+                ? `style="background-color: ${this.escapeHtml(note.color)}"` 
+                : '';
 
             return `
                 <div class="ratnotes-frontend-note ${pinnedClass}"
                      data-id="${note.id}"
-                     style="background-color: ${this.escapeHtml(note.color)}">
+                     ${bgStyle}>
                     ${note.title ? `<div class="ratnotes-frontend-note-title">${this.escapeHtml(note.title)}</div>` : ''}
                     <div class="ratnotes-frontend-note-content">${this.escapeHtml(note.content)}</div>
                     ${labels ? `<div class="ratnotes-frontend-note-labels">${labels}</div>` : ''}
@@ -405,9 +412,9 @@
          * Handle keyboard shortcuts.
          */
         handleKeyboard: function(e) {
-            // Escape to close modal
+            // Escape to save and close modal
             if (e.key === 'Escape' && this.$container.find('.ratnotes-frontend-modal').is(':visible')) {
-                this.closeModal();
+                this.saveNote();
             }
         },
 
