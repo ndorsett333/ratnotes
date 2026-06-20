@@ -50,6 +50,7 @@ class Main {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
         add_action( 'template_include', array( $this, 'load_archive_template' ) );
         add_action( 'admin_bar_menu', array( $this, 'add_admin_bar_link' ), 100 );
+        add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
         
         // Initialize frontend shortcode.
         add_action( 'init', array( 'RatNotes\Shortcode', 'init' ) );
@@ -61,6 +62,14 @@ class Main {
     public function init() {
         // Load text domain for translations.
         load_plugin_textdomain( 'ratnotes', false, dirname( RATNOTES_PLUGIN_BASENAME ) . '/languages' );
+    }
+
+    /**
+     * Register REST API routes.
+     */
+    public function register_rest_routes() {
+        $controller = new REST\Notes_Controller();
+        $controller->register_routes();
     }
 
     /**

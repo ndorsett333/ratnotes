@@ -67,15 +67,15 @@
 
             try {
                 // Build query params.
-                let url = `${ratnotesData.root}wp/v2/notes?per_page=100&author=${ratnotesData.userId}`;
+                let url = `${ratnotesData.root}ratnotes/v1/notes?per_page=100`;
 
                 if (this.currentStatus === 'trash') {
                     url += '&status=trash';
                 } else if (this.currentStatus === 'archived') {
-                    url += '&meta_key=ratnotes_is_archived&meta_value=1';
+                    url += '&status=archived';
                 } else {
                     // Active: not archived, not trashed.
-                    url += '&meta_key=ratnotes_is_archived&meta_value=0';
+                    url += '&status=active';
                 }
 
                 const response = await fetch(url, {
@@ -110,11 +110,11 @@
 
             // Sort: pinned first
             const sortedNotes = [...this.notes].sort((a, b) => {
-                const aPinned = a.meta?.ratnotes_is_pinned || false;
-                const bPinned = b.meta?.ratnotes_is_pinned || false;
+                const aPinned = a.is_pinned || false;
+                const bPinned = b.is_pinned || false;
                 if (aPinned && !bPinned) return -1;
                 if (!aPinned && bPinned) return 1;
-                return new Date(b.date) - new Date(a.date);
+                return new Date(b.updated_at) - new Date(a.updated_at);
             });
 
             $grid.html(
@@ -132,16 +132,16 @@
          * Render a single note card.
          */
         renderNoteCard: function(note) {
-            const pinnedClass = note.meta?.ratnotes_is_pinned ? 'pinned' : '';
-            const labels = (note.meta?.ratnotes_labels || []).map(label =>
+            const pinnedClass = note.is_pinned ? 'pinned' : '';
+            const labels = (note.labels || []).map(label =>
                 `<span class="ratnotes-label">${this.escapeHtml(label)}</span>`
             ).join('');
 
             return `
                 <div class="ratnotes-note-card ${pinnedClass}"
                      data-id="${note.id}">
-                    ${note.title?.rendered ? `<div class="ratnotes-note-title">${this.escapeHtml(note.title.rendered)}</div>` : ''}
-                    <div class="ratnotes-note-content">${this.escapeHtml(note.content.rendered)}</div>
+                    ${note.title ? `<div class="ratnotes-note-title">${this.escapeHtml(note.title)}</div>` : ''}
+                    <div class="ratnotes-note-content">${this.escapeHtml(note.content)}</div>
                     ${labels ? `<div class="ratnotes-note-labels">${labels}</div>` : ''}
                 </div>
             `;
@@ -191,8 +191,8 @@
             $('#ratnotes-note-content').val('');
 
             if (this.currentNote) {
-                $('#ratnotes-note-title').val(this.currentNote.title?.rendered || '');
-                $('#ratnotes-note-content').val(this.currentNote.content?.rendered || '');
+                $('#ratnotes-note-title').val(this.currentNote.title || '');
+                $('#ratnotes-note-content').val(this.currentNote.content || '');
             }
 
             $('#ratnotes-modal').fadeIn(200);
@@ -221,25 +221,18 @@
 
             try {
                 const url = this.currentNote
-                    ? `${ratnotesData.root}wp/v2/notes/${this.currentNote.id}`
-                    : `${ratnotesData.root}wp/v2/notes`;
+                    ? `${ratnotesData.root}ratnotes/v1/notes/${this.currentNote.id}`
+                    : `${ratnotesData.root}ratnotes/v1/notes`;
 
-                const method = this.currentNote ? 'POST' : 'POST';
-
-                const body = new FormData();
-                body.append('title', title);
-                body.append('content', content);
-
-                if (this.currentNote) {
-                    body.append('_method', 'PUT');
-                }
+                const method = this.currentNote ? 'PUT' : 'POST';
 
                 const response = await fetch(url, {
                     method: method,
                     headers: {
-                        'X-WP-Nonce': ratnotesData.nonce
+                        'X-WP-Nonce': ratnotesData.nonce,
+                        'Content-Type': 'application/json'
                     },
-                    body: body
+                    body: JSON.stringify({ title, content })
                 });
 
                 if (!response.ok) throw new Error('Failed to save note');
@@ -264,7 +257,7 @@
                 const force = this.currentStatus === 'trash';
 
                 const response = await fetch(
-                    `${ratnotesData.root}wp/v2/notes/${this.currentNote.id}?force=${force}`,
+                    `${ratnotesData.root}ratnotes/v1/notes/${this.currentNote.id}?force=${force}`,
                     {
                         method: 'DELETE',
                         headers: {
@@ -290,20 +283,17 @@
             if (!this.currentNote) return;
 
             try {
-                const isArchived = this.currentNote.meta?.ratnotes_is_archived || false;
-
-                const body = new FormData();
-                body.append('meta[ratnotes_is_archived]', isArchived ? false : true);
-                body.append('_method', 'PUT');
+                const isArchived = this.currentNote.is_archived || false;
 
                 const response = await fetch(
-                    `${ratnotesData.root}wp/v2/notes/${this.currentNote.id}`,
+                    `${ratnotesData.root}ratnotes/v1/notes/${this.currentNote.id}`,
                     {
-                        method: 'POST',
+                        method: 'PUT',
                         headers: {
-                            'X-WP-Nonce': ratnotesData.nonce
+                            'X-WP-Nonce': ratnotesData.nonce,
+                            'Content-Type': 'application/json'
                         },
-                        body: body
+                        body: JSON.stringify({ is_archived: !isArchived })
                     }
                 );
 
@@ -324,26 +314,23 @@
             if (!this.currentNote) return;
 
             try {
-                const isPinned = this.currentNote.meta?.ratnotes_is_pinned || false;
-
-                const body = new FormData();
-                body.append('meta[ratnotes_is_pinned]', !isPinned);
-                body.append('_method', 'PUT');
+                const isPinned = this.currentNote.is_pinned || false;
 
                 const response = await fetch(
-                    `${ratnotesData.root}wp/v2/notes/${this.currentNote.id}`,
+                    `${ratnotesData.root}ratnotes/v1/notes/${this.currentNote.id}`,
                     {
-                        method: 'POST',
+                        method: 'PUT',
                         headers: {
-                            'X-WP-Nonce': ratnotesData.nonce
+                            'X-WP-Nonce': ratnotesData.nonce,
+                            'Content-Type': 'application/json'
                         },
-                        body: body
+                        body: JSON.stringify({ is_pinned: !isPinned })
                     }
                 );
 
                 if (!response.ok) throw new Error('Failed to update pin status');
 
-                this.currentNote.meta.ratnotes_is_pinned = !isPinned;
+                this.closeModal();
                 this.loadNotes();
             } catch (error) {
                 console.error('Error toggling pin:', error);

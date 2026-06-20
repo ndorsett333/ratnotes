@@ -331,7 +331,7 @@ class Notes_Controller extends WP_REST_Controller {
 			// Move to trash and set trashed meta.
 			update_post_meta( $note_id, 'ratnotes_is_trashed', 1 );
 			update_post_meta( $note_id, 'ratnotes_trashed_at', current_time( 'mysql' ) );
-			$result = wp_delete_post( $note_id, false );
+			$result = wp_trash_post( $note_id );
 		}
 
 		if ( ! $result ) {
@@ -463,7 +463,6 @@ class Notes_Controller extends WP_REST_Controller {
 			'id'          => (int) $post->ID,
 			'title'       => $post->post_title,
 			'content'     => $post->post_content,
-			'color'       => $color ? $color : '#ffffff',
 			'is_pinned'   => (bool) $is_pinned,
 			'is_archived' => (bool) $is_archived,
 			'is_trashed'  => (bool) $is_trashed,

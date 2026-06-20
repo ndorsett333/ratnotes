@@ -220,15 +220,15 @@ class Shortcode {
 			'posts_per_page' => 100,
 			'orderby'        => 'date',
 			'order'          => 'DESC',
-			'meta_query'     => array(
-				'relation' => 'AND',
-			),
 		);
 
 		// Filter by status.
 		if ( 'trash' === $status ) {
 			$args['post_status'] = 'trash';
 		} elseif ( 'archived' === $status ) {
+			$args['meta_query'] = array(
+				'relation' => 'AND',
+			);
 			$args['meta_query'][] = array(
 				'key'     => 'ratnotes_is_archived',
 				'value'   => '1',
@@ -247,6 +247,9 @@ class Shortcode {
 				),
 			);
 		} else {
+			$args['meta_query'] = array(
+				'relation' => 'AND',
+			);
 			// Active: not archived (or meta doesn't exist) AND not trashed (or meta doesn't exist).
 			$args['meta_query'][] = array(
 				'relation' => 'OR',
@@ -395,11 +398,15 @@ class Shortcode {
 		}
 
 		if ( $force ) {
-			wp_delete_post( $note_id, true );
+			$result = wp_delete_post( $note_id, true );
 		} else {
 			update_post_meta( $note_id, 'ratnotes_is_trashed', 1 );
 			update_post_meta( $note_id, 'ratnotes_trashed_at', current_time( 'mysql' ) );
-			wp_delete_post( $note_id, false );
+			$result = wp_trash_post( $note_id );
+		}
+
+		if ( ! $result ) {
+			wp_send_json_error( array( 'message' => __( 'Could not delete note.', 'ratnotes' ) ) );
 		}
 
 		wp_send_json_success( array( 'deleted' => true ) );
