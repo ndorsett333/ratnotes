@@ -233,6 +233,16 @@ class Main {
             'ratnotes-new',
             '__return_empty_string'
         );
+
+        // Add submenu page for "Archive" - redirect handled by admin_init.
+        add_submenu_page(
+            'ratnotes',
+            __( 'Archive', 'ratnotes' ),
+            __( 'Archive', 'ratnotes' ),
+            'manage_options',
+            'ratnotes-archive',
+            '__return_empty_string'
+        );
     }
 
     /**
@@ -248,6 +258,12 @@ class Main {
         // Redirect ratnotes-new page to new note editor.
         if ( isset( $_GET['page'] ) && 'ratnotes-new' === $_GET['page'] ) {
             wp_redirect( admin_url( 'post-new.php?post_type=ratnote' ) );
+            exit;
+        }
+
+        // Redirect ratnotes-archive page to frontend archive URL.
+        if ( isset( $_GET['page'] ) && 'ratnotes-archive' === $_GET['page'] ) {
+            wp_redirect( home_url( '/ratnotes-archive' ) );
             exit;
         }
     }
