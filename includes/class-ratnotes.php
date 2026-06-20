@@ -51,6 +51,10 @@ class Main {
         add_action( 'template_include', array( $this, 'load_archive_template' ) );
         add_action( 'admin_bar_menu', array( $this, 'add_admin_bar_link' ), 100 );
         add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
+        add_filter( 'manage_ratnote_posts_columns', array( $this, 'add_status_column' ) );
+        add_action( 'manage_ratnote_posts_custom_column', array( $this, 'render_status_column' ), 10, 2 );
+        add_filter( 'views_edit-ratnote', array( $this, 'add_status_views' ) );
+        add_action( 'pre_get_posts', array( $this, 'filter_ratnote_admin_list' ) );
         
         // Initialize frontend shortcode.
         add_action( 'init', array( 'RatNotes\Shortcode', 'init' ) );
@@ -317,6 +321,174 @@ class Main {
                 ),
             )
         );
+    }
+
+    /**
+     * Add custom Status column to RatNotes admin list.
+     *
+     * @param array $columns Existing columns.
+     * @return array
+     */
+    public function add_status_column( $columns ) {
+        $new_columns = array();
+
+        foreach ( $columns as $key => $label ) {
+            $new_columns[ $key ] = $label;
+
+            if ( 'title' === $key ) {
+                $new_columns['ratnotes_status'] = __( 'Status', 'ratnotes' );
+            }
+        }
+
+        if ( ! isset( $new_columns['ratnotes_status'] ) ) {
+            $new_columns['ratnotes_status'] = __( 'Status', 'ratnotes' );
+        }
+
+        return $new_columns;
+    }
+
+    /**
+     * Render custom Status column content.
+     *
+     * @param string $column  Column key.
+     * @param int    $post_id Current post ID.
+     */
+    public function render_status_column( $column, $post_id ) {
+        if ( 'ratnotes_status' !== $column ) {
+            return;
+        }
+
+        $is_archived = get_post_meta( $post_id, 'ratnotes_is_archived', true );
+        echo esc_html( $is_archived ? __( 'Archived', 'ratnotes' ) : __( 'Active', 'ratnotes' ) );
+    }
+
+    /**
+     * Add custom Active/Archived views to RatNotes admin list.
+     *
+     * @param array $views Existing view links.
+     * @return array
+     */
+    public function add_status_views( $views ) {
+        $selected = isset( $_GET['ratnotes_status'] ) ? sanitize_key( wp_unslash( $_GET['ratnotes_status'] ) ) : 'active';
+        $base_url = admin_url( 'edit.php?post_type=ratnote' );
+
+        $active_count   = $this->count_ratnotes_by_archived( false );
+        $archived_count = $this->count_ratnotes_by_archived( true );
+
+        $views['ratnotes_active'] = sprintf(
+            '<a href="%1$s"%2$s>%3$s <span class="count">(%4$d)</span></a>',
+            esc_url( add_query_arg( 'ratnotes_status', 'active', $base_url ) ),
+            'active' === $selected ? ' class="current" aria-current="page"' : '',
+            esc_html__( 'Active', 'ratnotes' ),
+            (int) $active_count
+        );
+
+        $views['ratnotes_archived'] = sprintf(
+            '<a href="%1$s"%2$s>%3$s <span class="count">(%4$d)</span></a>',
+            esc_url( add_query_arg( 'ratnotes_status', 'archived', $base_url ) ),
+            'archived' === $selected ? ' class="current" aria-current="page"' : '',
+            esc_html__( 'Archived', 'ratnotes' ),
+            (int) $archived_count
+        );
+
+        return $views;
+    }
+
+    /**
+     * Filter RatNotes admin list by custom status.
+     *
+     * Defaults to Active notes unless Archived is selected.
+     *
+     * @param \WP_Query $query Main query instance.
+     */
+    public function filter_ratnote_admin_list( $query ) {
+        global $pagenow;
+
+        if ( ! is_admin() || ! $query->is_main_query() || 'edit.php' !== $pagenow ) {
+            return;
+        }
+
+        if ( 'ratnote' !== $query->get( 'post_type' ) ) {
+            return;
+        }
+
+        // Do not override native trash view.
+        if ( 'trash' === $query->get( 'post_status' ) ) {
+            return;
+        }
+
+        $selected = isset( $_GET['ratnotes_status'] ) ? sanitize_key( wp_unslash( $_GET['ratnotes_status'] ) ) : 'active';
+
+        $status_query = array();
+        if ( 'archived' === $selected ) {
+            $status_query[] = array(
+                'key'   => 'ratnotes_is_archived',
+                'value' => '1',
+            );
+        } else {
+            $status_query[] = array(
+                'relation' => 'OR',
+                array(
+                    'key'   => 'ratnotes_is_archived',
+                    'value' => '0',
+                ),
+                array(
+                    'key'     => 'ratnotes_is_archived',
+                    'compare' => 'NOT EXISTS',
+                ),
+            );
+        }
+
+        $existing_meta_query = $query->get( 'meta_query' );
+        if ( ! is_array( $existing_meta_query ) ) {
+            $existing_meta_query = array();
+        }
+
+        $meta_query = array( 'relation' => 'AND' );
+        if ( ! empty( $existing_meta_query ) ) {
+            $meta_query[] = $existing_meta_query;
+        }
+        $meta_query[] = $status_query[0];
+
+        $query->set( 'meta_query', $meta_query );
+    }
+
+    /**
+     * Count RatNotes by archived state for admin view links.
+     *
+     * @param bool $is_archived Whether to count archived notes.
+     * @return int
+     */
+    private function count_ratnotes_by_archived( $is_archived ) {
+        $args = array(
+            'post_type'      => 'ratnote',
+            'post_status'    => 'publish',
+            'posts_per_page' => 1,
+            'fields'         => 'ids',
+            'meta_query'     => array(),
+        );
+
+        if ( $is_archived ) {
+            $args['meta_query'][] = array(
+                'key'   => 'ratnotes_is_archived',
+                'value' => '1',
+            );
+        } else {
+            $args['meta_query'][] = array(
+                'relation' => 'OR',
+                array(
+                    'key'   => 'ratnotes_is_archived',
+                    'value' => '0',
+                ),
+                array(
+                    'key'     => 'ratnotes_is_archived',
+                    'compare' => 'NOT EXISTS',
+                ),
+            );
+        }
+
+        $query = new \WP_Query( $args );
+        return (int) $query->found_posts;
     }
 
     /**
