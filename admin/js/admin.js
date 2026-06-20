@@ -52,9 +52,6 @@
             // Pin button
             $('#ratnotes-pin-btn').on('click', () => this.togglePin());
 
-            // Color picker
-            $('.ratnotes-color-btn').on('click', (e) => this.selectColor(e));
-
             // Keyboard shortcuts
             $(document).on('keydown', (e) => this.handleKeyboard(e));
         },
@@ -136,15 +133,13 @@
          */
         renderNoteCard: function(note) {
             const pinnedClass = note.meta?.ratnotes_is_pinned ? 'pinned' : '';
-            const color = note.meta?.ratnotes_color || '#ffffff';
             const labels = (note.meta?.ratnotes_labels || []).map(label =>
                 `<span class="ratnotes-label">${this.escapeHtml(label)}</span>`
             ).join('');
 
             return `
                 <div class="ratnotes-note-card ${pinnedClass}"
-                     data-id="${note.id}"
-                     style="background-color: ${color}">
+                     data-id="${note.id}">
                     ${note.title?.rendered ? `<div class="ratnotes-note-title">${this.escapeHtml(note.title.rendered)}</div>` : ''}
                     <div class="ratnotes-note-content">${this.escapeHtml(note.content.rendered)}</div>
                     ${labels ? `<div class="ratnotes-note-labels">${labels}</div>` : ''}
@@ -194,13 +189,10 @@
             // Reset modal
             $('#ratnotes-note-title').val('');
             $('#ratnotes-note-content').val('');
-            $('.ratnotes-color-btn').removeClass('active');
 
             if (this.currentNote) {
                 $('#ratnotes-note-title').val(this.currentNote.title?.rendered || '');
                 $('#ratnotes-note-content').val(this.currentNote.content?.rendered || '');
-                const color = this.currentNote.meta?.ratnotes_color || '#ffffff';
-                $(`.ratnotes-color-btn[data-color="${color}"]`).addClass('active');
             }
 
             $('#ratnotes-modal').fadeIn(200);
@@ -221,7 +213,6 @@
         saveNote: async function() {
             const title = $('#ratnotes-note-title').val().trim();
             const content = $('#ratnotes-note-content').val().trim();
-            const color = $('.ratnotes-color-btn.active').data('color') || '#ffffff';
 
             if (!title && !content) {
                 this.closeModal();
@@ -238,7 +229,6 @@
                 const body = new FormData();
                 body.append('title', title);
                 body.append('content', content);
-                body.append('meta[ratnotes_color]', color);
 
                 if (this.currentNote) {
                     body.append('_method', 'PUT');
@@ -359,14 +349,6 @@
                 console.error('Error toggling pin:', error);
                 this.showError('Failed to update pin status');
             }
-        },
-
-        /**
-         * Select color.
-         */
-        selectColor: function(e) {
-            $('.ratnotes-color-btn').removeClass('active');
-            $(e.target).addClass('active');
         },
 
         /**

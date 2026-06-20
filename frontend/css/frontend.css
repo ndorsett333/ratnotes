@@ -363,29 +363,6 @@
 	background-color: #313244;
 }
 
-.ratnotes-frontend-color-picker {
-	display: flex;
-	gap: 6px;
-}
-
-.ratnotes-frontend-color-btn {
-	width: 28px;
-	height: 28px;
-	border-radius: 50%;
-	border: 2px solid #45475a;
-	cursor: pointer;
-	transition: transform 0.1s, border-color 0.2s;
-}
-
-.ratnotes-frontend-color-btn:hover {
-	transform: scale(1.1);
-}
-
-.ratnotes-frontend-color-btn.active {
-	border-color: #89b4fa;
-	box-shadow: 0 0 0 2px rgba(137, 180, 250, 0.3);
-}
-
 .ratnotes-frontend-actions {
 	display: flex;
 	gap: 8px;
@@ -396,9 +373,12 @@
 	align-items: center;
 	justify-content: center;
 	padding: 8px 12px;
+	min-width: 32px;
+	min-height: 32px;
 	background-color: #45475a;
 	color: #cdd6f4;
 	border: none;
+	cursor: pointer;
 }
 
 .ratnotes-frontend-actions .button:hover {
@@ -418,6 +398,9 @@
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
+	line-height: 18px;
+	display: inline-block;
+	text-align: center;
 }
 
 /* Responsive */

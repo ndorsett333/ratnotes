@@ -117,20 +117,9 @@ class Shortcode {
 						></textarea>
 					</div>
 					<div class="ratnotes-frontend-modal-footer">
-						<div class="ratnotes-frontend-color-picker">
-							<button class="ratnotes-frontend-color-btn active" data-color="#ffffff" style="background-color: #ffffff;"></button>
-							<button class="ratnotes-frontend-color-btn" data-color="#f28b82" style="background-color: #f28b82;"></button>
-							<button class="ratnotes-frontend-color-btn" data-color="#fbbc04" style="background-color: #fbbc04;"></button>
-							<button class="ratnotes-frontend-color-btn" data-color="#fff475" style="background-color: #fff475;"></button>
-							<button class="ratnotes-frontend-color-btn" data-color="#ccff90" style="background-color: #ccff90;"></button>
-							<button class="ratnotes-frontend-color-btn" data-color="#a7ffeb" style="background-color: #a7ffeb;"></button>
-							<button class="ratnotes-frontend-color-btn" data-color="#cbf0f8" style="background-color: #cbf0f8;"></button>
-							<button class="ratnotes-frontend-color-btn" data-color="#d0c4ff" style="background-color: #d0c4ff;"></button>
-							<button class="ratnotes-frontend-color-btn" data-color="#ffccbc" style="background-color: #ffccbc;"></button>
-						</div>
 						<div class="ratnotes-frontend-actions">
 							<button class="ratnotes-frontend-pin-btn button">
-								<span class="dashicons dashicons-pin"></span>
+							<span class="dashicons dashicons-admin-post"></span>
 							</button>
 							<button class="ratnotes-frontend-archive-btn button">
 								<span class="dashicons dashicons-archive"></span>
@@ -155,6 +144,8 @@ class Shortcode {
 	 * Enqueue frontend assets.
 	 */
 	public static function enqueue_assets() {
+		wp_enqueue_style( 'dashicons' );
+		
 		wp_enqueue_style(
 			'ratnotes-frontend',
 			RATNOTES_PLUGIN_URL . 'frontend/css/frontend.css',
@@ -296,7 +287,6 @@ class Shortcode {
 				'id'          => (int) $post->ID,
 				'title'       => $post->post_title,
 				'content'     => self::strip_block_markup( $post->post_content ),
-				'color'       => get_post_meta( $post->ID, 'ratnotes_color', true ) ?: '#ffffff',
 				'is_pinned'   => (bool) get_post_meta( $post->ID, 'ratnotes_is_pinned', true ),
 				'is_archived' => (bool) get_post_meta( $post->ID, 'ratnotes_is_archived', true ),
 				'is_trashed'  => (bool) get_post_meta( $post->ID, 'ratnotes_is_trashed', true ),
@@ -341,7 +331,6 @@ class Shortcode {
 
 			wp_update_post( $post_data );
 
-			update_post_meta( $note_id, 'ratnotes_color', $color );
 			update_post_meta( $note_id, 'ratnotes_is_pinned', $is_pinned ? '1' : '0' );
 			update_post_meta( $note_id, 'ratnotes_is_archived', $is_archived ? '1' : '0' );
 			update_post_meta( $note_id, 'ratnotes_is_trashed', '0' );
@@ -361,7 +350,6 @@ class Shortcode {
 				wp_send_json_error( array( 'message' => __( 'Could not create note.', 'ratnotes' ) ) );
 			}
 
-			update_post_meta( $note_id, 'ratnotes_color', $color );
 			update_post_meta( $note_id, 'ratnotes_is_pinned', $is_pinned ? '1' : '0' );
 			update_post_meta( $note_id, 'ratnotes_is_archived', $is_archived ? '1' : '0' );
 			update_post_meta( $note_id, 'ratnotes_is_trashed', '0' );
@@ -373,7 +361,7 @@ class Shortcode {
 				'id'          => (int) $post->ID,
 				'title'       => $post->post_title,
 				'content'     => self::strip_block_markup( $post->post_content ),
-				'color'       => get_post_meta( $post->ID, 'ratnotes_color', true ) ?: '#ffffff',
+
 				'is_pinned'   => (bool) get_post_meta( $post->ID, 'ratnotes_is_pinned', true ),
 				'is_archived' => (bool) get_post_meta( $post->ID, 'ratnotes_is_archived', true ),
 				'is_trashed'  => (bool) get_post_meta( $post->ID, 'ratnotes_is_trashed', true ),

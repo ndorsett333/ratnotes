@@ -60,9 +60,6 @@
             // Pin button
             this.$container.on('click', '.ratnotes-frontend-pin-btn', () => this.togglePin());
 
-            // Color picker
-            this.$container.on('click', '.ratnotes-frontend-color-btn', (e) => this.selectColor(e));
-
             // Note card click
             this.$container.on('click', '.ratnotes-frontend-note', (e) => {
                 if (!$(e.target).closest('.ratnotes-frontend-actions').length) {
@@ -143,15 +140,10 @@
             const labels = (note.labels || []).map(label =>
                 `<span class="ratnotes-frontend-label">${this.escapeHtml(label)}</span>`
             ).join('');
-            // Only apply inline background color if it's not white (let CSS handle default)
-            const bgStyle = note.color && note.color.toLowerCase() !== '#ffffff' 
-                ? `style="background-color: ${this.escapeHtml(note.color)}"` 
-                : '';
 
             return `
                 <div class="ratnotes-frontend-note ${pinnedClass}"
-                     data-id="${note.id}"
-                     ${bgStyle}>
+                     data-id="${note.id}">
                     ${note.title ? `<div class="ratnotes-frontend-note-title">${this.escapeHtml(note.title)}</div>` : ''}
                     <div class="ratnotes-frontend-note-content">${this.escapeHtml(note.content)}</div>
                     ${labels ? `<div class="ratnotes-frontend-note-labels">${labels}</div>` : ''}
@@ -210,15 +202,10 @@
             // Reset modal
             $title.val('');
             $content.val('');
-            $modal.find('.ratnotes-frontend-color-btn').removeClass('active');
 
             if (this.currentNote) {
                 $title.val(this.currentNote.title);
                 $content.val(this.currentNote.content);
-                $modal.find(`.ratnotes-frontend-color-btn[data-color="${this.currentNote.color}"]`).addClass('active');
-            } else {
-                // Default color for new notes
-                $modal.find('.ratnotes-frontend-color-btn[data-color="#ffffff"]').addClass('active');
             }
 
             $modal.fadeIn(200);
@@ -240,7 +227,6 @@
             const $modal = this.$container.find('.ratnotes-frontend-modal');
             const title = $modal.find('.ratnotes-frontend-note-title').val().trim();
             const content = $modal.find('.ratnotes-frontend-note-content').val().trim();
-            const color = $modal.find('.ratnotes-frontend-color-btn.active').data('color') || '#ffffff';
 
             if (!title && !content) {
                 this.closeModal();
@@ -257,7 +243,6 @@
                         id: this.currentNote ? this.currentNote.id : 0,
                         title: title,
                         content: content,
-                        color: color,
                         is_pinned: this.currentNote ? this.currentNote.is_pinned : false,
                         is_archived: this.currentNote ? this.currentNote.is_archived : false
                     }
@@ -325,7 +310,6 @@
                         id: this.currentNote.id,
                         title: this.currentNote.title,
                         content: this.currentNote.content,
-                        color: this.currentNote.color,
                         is_pinned: this.currentNote.is_pinned,
                         is_archived: !isArchived
                     }
@@ -359,7 +343,6 @@
                         id: this.currentNote.id,
                         title: this.currentNote.title,
                         content: this.currentNote.content,
-                        color: this.currentNote.color,
                         is_pinned: !this.currentNote.is_pinned,
                         is_archived: this.currentNote.is_archived
                     }
@@ -376,14 +359,6 @@
                 console.error('Error toggling pin:', error);
                 this.showError('Failed to update pin status');
             }
-        },
-
-        /**
-         * Select color.
-         */
-        selectColor: function(e) {
-            this.$container.find('.ratnotes-frontend-color-btn').removeClass('active');
-            $(e.target).addClass('active');
         },
 
         /**

@@ -243,7 +243,6 @@ class Notes_Controller extends WP_REST_Controller {
 		}
 
 		// Update meta fields.
-		update_post_meta( $note_id, 'ratnotes_color', sanitize_hex_color( $request->get_param( 'color' ) ) );
 		update_post_meta( $note_id, 'ratnotes_is_pinned', $request->get_param( 'is_pinned' ) ? 1 : 0 );
 		update_post_meta( $note_id, 'ratnotes_is_archived', $request->get_param( 'is_archived' ) ? 1 : 0 );
 		update_post_meta( $note_id, 'ratnotes_is_trashed', 0 );
@@ -291,9 +290,6 @@ class Notes_Controller extends WP_REST_Controller {
 		}
 
 		// Update meta fields.
-		if ( $request->has_param( 'color' ) ) {
-			update_post_meta( $note_id, 'ratnotes_color', sanitize_hex_color( $request->get_param( 'color' ) ) );
-		}
 		if ( $request->has_param( 'is_pinned' ) ) {
 			update_post_meta( $note_id, 'ratnotes_is_pinned', $request->get_param( 'is_pinned' ) ? 1 : 0 );
 		}
@@ -458,7 +454,6 @@ class Notes_Controller extends WP_REST_Controller {
 	 * @return array
 	 */
 	public function prepare_item_for_response( $post, $request ) {
-		$color       = get_post_meta( $post->ID, 'ratnotes_color', true );
 		$is_pinned   = get_post_meta( $post->ID, 'ratnotes_is_pinned', true );
 		$is_archived = get_post_meta( $post->ID, 'ratnotes_is_archived', true );
 		$is_trashed  = get_post_meta( $post->ID, 'ratnotes_is_trashed', true );

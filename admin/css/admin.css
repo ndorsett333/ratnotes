@@ -248,28 +248,6 @@
     gap: 16px;
 }
 
-.ratnotes-color-picker {
-    display: flex;
-    gap: 8px;
-}
-
-.ratnotes-color-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    border: 2px solid transparent;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.ratnotes-color-btn:hover {
-    transform: scale(1.1);
-}
-
-.ratnotes-color-btn.active {
-    border-color: #202124;
-}
-
 .ratnotes-actions {
     display: flex;
     gap: 8px;
@@ -279,6 +257,12 @@
     display: flex;
     align-items: center;
     gap: 4px;
+}
+
+.ratnotes-actions .button .dashicons {
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
 }
 
 /* Loading */

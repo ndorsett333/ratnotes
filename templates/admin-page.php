@@ -80,20 +80,9 @@ if ( ! defined( 'ABSPATH' ) ) {
                 ></textarea>
             </div>
             <div class="ratnotes-modal-footer">
-                <div class="ratnotes-color-picker">
-                    <button class="ratnotes-color-btn" data-color="#ffffff" style="background-color: #ffffff;"></button>
-                    <button class="ratnotes-color-btn" data-color="#f28b82" style="background-color: #f28b82;"></button>
-                    <button class="ratnotes-color-btn" data-color="#fbbc04" style="background-color: #fbbc04;"></button>
-                    <button class="ratnotes-color-btn" data-color="#fff475" style="background-color: #fff475;"></button>
-                    <button class="ratnotes-color-btn" data-color="#ccff90" style="background-color: #ccff90;"></button>
-                    <button class="ratnotes-color-btn" data-color="#a7ffeb" style="background-color: #a7ffeb;"></button>
-                    <button class="ratnotes-color-btn" data-color="#cbf0f8" style="background-color: #cbf0f8;"></button>
-                    <button class="ratnotes-color-btn" data-color="#d0c4ff" style="background-color: #d0c4ff;"></button>
-                    <button class="ratnotes-color-btn" data-color="#ffccbc" style="background-color: #ffccbc;"></button>
-                </div>
                 <div class="ratnotes-actions">
                     <button id="ratnotes-pin-btn" class="button">
-                        <span class="dashicons dashicons-pin"></span>
+                        <span class="dashicons dashicons-admin-post"></span>
                     </button>
                     <button id="ratnotes-archive-btn" class="button">
                         <span class="dashicons dashicons-archive"></span>

@@ -100,14 +100,6 @@ class Main {
         register_post_type( 'ratnote', $args );
 
         // Register meta fields.
-        register_meta( 'post', 'ratnotes_color', array(
-            'type'              => 'string',
-            'sanitize_callback' => 'sanitize_hex_color',
-            'show_in_rest'      => true,
-            'single'            => true,
-            'default'           => '#ffffff',
-        ) );
-
         register_meta( 'post', 'ratnotes_is_pinned', array(
             'type'              => 'string',
             'sanitize_callback' => array( $this, 'sanitize_boolean_string' ),
