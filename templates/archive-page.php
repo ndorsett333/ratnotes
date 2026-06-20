@@ -246,6 +246,17 @@ $site_url  = home_url();
 			<?php else : ?>
 				<!-- Notes Grid Container -->
 				<div class="ratnotes-frontend" data-status="active" data-columns="3">
+					<div class="ratnotes-frontend-sidebar-overlay"></div>
+					<aside class="ratnotes-frontend-sidebar" aria-label="<?php esc_attr_e( 'Categories', 'ratnotes' ); ?>">
+						<div class="ratnotes-frontend-sidebar-header">
+							<h3><?php esc_html_e( 'Categories', 'ratnotes' ); ?></h3>
+							<button type="button" class="ratnotes-frontend-sidebar-close" aria-label="<?php esc_attr_e( 'Close categories', 'ratnotes' ); ?>">
+								<span class="dashicons dashicons-no"></span>
+							</button>
+						</div>
+						<nav class="ratnotes-frontend-category-list"></nav>
+					</aside>
+
 					<div class="ratnotes-frontend-nav">
 						<button class="ratnotes-frontend-nav-item active" data-status="active">
 							<span class="dashicons dashicons-admin-notes"></span>
@@ -262,6 +273,9 @@ $site_url  = home_url();
 					</div>
 
 					<div class="ratnotes-frontend-header">
+						<button type="button" class="ratnotes-frontend-menu-toggle button" aria-label="<?php esc_attr_e( 'Open categories', 'ratnotes' ); ?>">
+							<span class="dashicons dashicons-menu"></span>
+						</button>
 						<div class="ratnotes-frontend-search">
 							<input
 								type="search"

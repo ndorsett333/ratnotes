@@ -18,6 +18,8 @@ class Shortcode {
 	public static function init() {
 		add_shortcode( 'ratnotes', array( __CLASS__, 'render' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
+		add_action( 'wp_ajax_ratnotes_get_categories', array( __CLASS__, 'ajax_get_categories' ) );
+		add_action( 'wp_ajax_nopriv_ratnotes_get_categories', array( __CLASS__, 'ajax_get_categories' ) );
 		add_action( 'wp_ajax_ratnotes_get_notes', array( __CLASS__, 'ajax_get_notes' ) );
 		add_action( 'wp_ajax_nopriv_ratnotes_get_notes', array( __CLASS__, 'ajax_get_notes' ) );
 		add_action( 'wp_ajax_ratnotes_save_note', array( __CLASS__, 'ajax_save_note' ) );
@@ -52,6 +54,17 @@ class Shortcode {
 		ob_start();
 		?>
 		<div class="ratnotes-frontend" data-status="<?php echo esc_attr( $atts['status'] ); ?>" data-columns="<?php echo esc_attr( $atts['columns'] ); ?>">
+			<div class="ratnotes-frontend-sidebar-overlay"></div>
+			<aside class="ratnotes-frontend-sidebar" aria-label="<?php esc_attr_e( 'Categories', 'ratnotes' ); ?>">
+				<div class="ratnotes-frontend-sidebar-header">
+					<h3><?php esc_html_e( 'Categories', 'ratnotes' ); ?></h3>
+					<button type="button" class="ratnotes-frontend-sidebar-close" aria-label="<?php esc_attr_e( 'Close categories', 'ratnotes' ); ?>">
+						<span class="dashicons dashicons-no"></span>
+					</button>
+				</div>
+				<nav class="ratnotes-frontend-category-list"></nav>
+			</aside>
+
 			<?php if ( 'true' === $atts['filter'] ) : ?>
 			<div class="ratnotes-frontend-nav">
 				<button class="ratnotes-frontend-nav-item active" data-status="active">
@@ -70,6 +83,9 @@ class Shortcode {
 			<?php endif; ?>
 
 			<div class="ratnotes-frontend-header">
+				<button type="button" class="ratnotes-frontend-menu-toggle button" aria-label="<?php esc_attr_e( 'Open categories', 'ratnotes' ); ?>">
+					<span class="dashicons dashicons-menu"></span>
+				</button>
 				<?php if ( 'true' === $atts['search'] ) : ?>
 				<div class="ratnotes-frontend-search">
 					<input
@@ -212,6 +228,7 @@ class Shortcode {
 
 		$status = isset( $_POST['status'] ) ? sanitize_text_field( $_POST['status'] ) : 'active';
 		$search = isset( $_POST['search'] ) ? sanitize_text_field( $_POST['search'] ) : '';
+		$category = isset( $_POST['category'] ) ? intval( $_POST['category'] ) : 0;
 
 		$args = array(
 			'post_type'      => 'ratnote',
@@ -282,10 +299,36 @@ class Shortcode {
 			$args['s'] = $search;
 		}
 
+		// Category filter.
+		if ( $category > 0 ) {
+			$args['tax_query'] = array(
+				array(
+					'taxonomy' => 'ratnote_category',
+					'field'    => 'term_id',
+					'terms'    => $category,
+				),
+			);
+		}
+
 		$query = new \WP_Query( $args );
 		$notes = array();
 
 		foreach ( $query->posts as $post ) {
+			$categories = wp_get_post_terms( $post->ID, 'ratnote_category' );
+			if ( is_wp_error( $categories ) ) {
+				$categories = array();
+			}
+
+			$category_data = array_map(
+				static function ( $term ) {
+					return array(
+						'id'   => (int) $term->term_id,
+						'name' => $term->name,
+					);
+				},
+				$categories
+			);
+
 			$notes[] = array(
 				'id'          => (int) $post->ID,
 				'title'       => $post->post_title,
@@ -293,6 +336,7 @@ class Shortcode {
 				'is_pinned'   => (bool) get_post_meta( $post->ID, 'ratnotes_is_pinned', true ),
 				'is_archived' => (bool) get_post_meta( $post->ID, 'ratnotes_is_archived', true ),
 				'is_trashed'  => (bool) get_post_meta( $post->ID, 'ratnotes_is_trashed', true ),
+				'categories'  => $category_data,
 				'labels'      => get_post_meta( $post->ID, 'ratnotes_labels', true ) ?: array(),
 				'created_at'  => $post->post_date,
 				'updated_at'  => $post->post_modified,
@@ -300,6 +344,58 @@ class Shortcode {
 		}
 
 		wp_send_json_success( $notes );
+	}
+
+	/**
+	 * AJAX: Get categories used by current user's notes.
+	 */
+	public static function ajax_get_categories() {
+		check_ajax_referer( 'ratnotes_frontend', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_success( array() );
+		}
+
+		$post_ids = get_posts(
+			array(
+				'post_type'      => 'ratnote',
+				'post_status'    => 'any',
+				'author'         => get_current_user_id(),
+				'fields'         => 'ids',
+				'posts_per_page' => -1,
+			)
+		);
+
+		if ( empty( $post_ids ) ) {
+			wp_send_json_success( array() );
+		}
+
+		$terms = wp_get_object_terms(
+			$post_ids,
+			'ratnote_category',
+			array(
+				'orderby' => 'name',
+				'order'   => 'ASC',
+			)
+		);
+
+		if ( is_wp_error( $terms ) ) {
+			wp_send_json_error( array( 'message' => __( 'Could not load categories.', 'ratnotes' ) ) );
+		}
+
+		$categories = array_map(
+			static function ( $term ) {
+				return array(
+					'id'    => (int) $term->term_id,
+					'name'  => $term->name,
+					'slug'  => $term->slug,
+					'count' => (int) $term->count,
+				);
+			},
+			$terms
+		);
+
+		wp_send_json_success( $categories );
 	}
 
 	/**

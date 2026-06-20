@@ -12,8 +12,10 @@
      */
     const RatNotesFrontend = {
         notes: [],
+        categories: [],
         currentNote: null,
         currentStatus: 'active',
+        currentCategory: 'all',
         isLoading: false,
         $container: null,
 
@@ -26,6 +28,7 @@
 
             this.currentStatus = this.$container.data('status') || 'active';
             this.bindEvents();
+            this.loadCategories();
             this.loadNotes();
         },
 
@@ -41,6 +44,11 @@
 
             // Create button
             this.$container.on('click', '.ratnotes-frontend-create-btn', () => this.openModal());
+
+            // Sidebar
+            this.$container.on('click', '.ratnotes-frontend-menu-toggle', () => this.toggleSidebar(true));
+            this.$container.on('click', '.ratnotes-frontend-sidebar-close, .ratnotes-frontend-sidebar-overlay', () => this.toggleSidebar(false));
+            this.$container.on('click', '.ratnotes-frontend-category-item', (e) => this.handleCategoryClick(e));
 
             // Modal close (X button) - saves note
             this.$container.on('click', '.ratnotes-frontend-modal-close', () => this.saveNote());
@@ -89,6 +97,7 @@
                         action: 'ratnotes_get_notes',
                         nonce: ratnotesFrontendData.nonce,
                         status: this.currentStatus,
+                        category: this.currentCategory === 'all' ? '' : this.currentCategory,
                         search: this.$container.find('.ratnotes-frontend-search-input').val() || ''
                     }
                 });
@@ -106,6 +115,46 @@
                 this.isLoading = false;
                 this.$container.find('.ratnotes-frontend-loading').hide();
             }
+        },
+
+        /**
+         * Load categories from API.
+         */
+        loadCategories: async function() {
+            try {
+                const response = await $.ajax({
+                    url: ratnotesFrontendData.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'ratnotes_get_categories',
+                        nonce: ratnotesFrontendData.nonce
+                    }
+                });
+
+                if (response.success) {
+                    this.categories = response.data || [];
+                    this.renderCategories();
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        },
+
+        /**
+         * Render category list in sidebar.
+         */
+        renderCategories: function() {
+            const $list = this.$container.find('.ratnotes-frontend-category-list');
+            if (!$list.length) return;
+
+            const items = [
+                `<button type="button" class="ratnotes-frontend-category-item ${this.currentCategory === 'all' ? 'active' : ''}" data-id="all">All Notes</button>`,
+                ...this.categories.map(category =>
+                    `<button type="button" class="ratnotes-frontend-category-item ${String(this.currentCategory) === String(category.id) ? 'active' : ''}" data-id="${category.id}">${this.escapeHtml(category.name)}</button>`
+                )
+            ];
+
+            $list.html(items.join(''));
         },
 
         /**
@@ -369,6 +418,24 @@
             $(e.currentTarget).addClass('active');
             this.currentStatus = $(e.currentTarget).data('status');
             this.loadNotes();
+        },
+
+        /**
+         * Handle category selection from sidebar.
+         */
+        handleCategoryClick: function(e) {
+            const selectedCategory = $(e.currentTarget).data('id');
+            this.currentCategory = selectedCategory;
+            this.renderCategories();
+            this.toggleSidebar(false);
+            this.loadNotes();
+        },
+
+        /**
+         * Toggle sidebar open/close state.
+         */
+        toggleSidebar: function(isOpen) {
+            this.$container.toggleClass('sidebar-open', !!isOpen);
         },
 
         /**

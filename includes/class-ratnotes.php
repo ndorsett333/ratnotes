@@ -44,6 +44,7 @@ class Main {
     private function init_hooks() {
         add_action( 'init', array( $this, 'init' ) );
         add_action( 'init', array( $this, 'register_post_type' ) );
+        add_action( 'init', array( $this, 'register_taxonomy' ) );
         add_action( 'init', array( $this, 'add_rewrite_rules' ) );
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
         add_action( 'admin_init', array( $this, 'handle_menu_redirect' ) );
@@ -152,6 +153,40 @@ class Main {
     }
 
     /**
+     * Register category taxonomy for notes.
+     */
+    public function register_taxonomy() {
+        $labels = array(
+            'name'              => _x( 'Categories', 'taxonomy general name', 'ratnotes' ),
+            'singular_name'     => _x( 'Category', 'taxonomy singular name', 'ratnotes' ),
+            'search_items'      => __( 'Search Categories', 'ratnotes' ),
+            'all_items'         => __( 'All Categories', 'ratnotes' ),
+            'parent_item'       => __( 'Parent Category', 'ratnotes' ),
+            'parent_item_colon' => __( 'Parent Category:', 'ratnotes' ),
+            'edit_item'         => __( 'Edit Category', 'ratnotes' ),
+            'update_item'       => __( 'Update Category', 'ratnotes' ),
+            'add_new_item'      => __( 'Add New Category', 'ratnotes' ),
+            'new_item_name'     => __( 'New Category Name', 'ratnotes' ),
+            'menu_name'         => __( 'Categories', 'ratnotes' ),
+        );
+
+        register_taxonomy(
+            'ratnote_category',
+            array( 'ratnote' ),
+            array(
+                'hierarchical'      => true,
+                'labels'            => $labels,
+                'show_ui'           => true,
+                'show_in_menu'      => false,
+                'show_admin_column' => true,
+                'show_in_rest'      => true,
+                'query_var'         => true,
+                'rewrite'           => false,
+            )
+        );
+    }
+
+    /**
      * Sanitize boolean to string '0' or '1'.
      *
      * @param mixed $value The value to sanitize.
@@ -237,6 +272,15 @@ class Main {
             'ratnotes-new',
             '__return_empty_string'
         );
+
+            // Add submenu page for "Categories".
+            add_submenu_page(
+                'ratnotes',
+                __( 'Categories', 'ratnotes' ),
+                __( 'Categories', 'ratnotes' ),
+                'manage_categories',
+                'edit-tags.php?taxonomy=ratnote_category&post_type=ratnote'
+            );
 
         // Add submenu page for "Archive" - redirect handled by admin_init.
         add_submenu_page(
