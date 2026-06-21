@@ -360,6 +360,7 @@ class Main {
                 'userId'  => get_current_user_id(),
                 'strings' => array(
                     'confirmDelete' => __( 'Are you sure you want to delete this note?', 'ratnotes' ),
+                    'confirmDeleteForever' => __( 'Are you sure you want to delete? This will delete this note forever.', 'ratnotes' ),
                     'createNote'    => __( 'Create Note', 'ratnotes' ),
                     'editNote'      => __( 'Edit Note', 'ratnotes' ),
                 ),

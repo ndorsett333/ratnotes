@@ -253,6 +253,10 @@
 
             if (!confirm(ratnotesData.strings.confirmDelete)) return;
 
+            if (this.currentStatus === 'trash' && !confirm(ratnotesData.strings.confirmDeleteForever)) {
+                return;
+            }
+
             try {
                 const force = this.currentStatus === 'trash';
 

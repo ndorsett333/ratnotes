@@ -26,6 +26,8 @@ class Shortcode {
 		add_action( 'wp_ajax_nopriv_ratnotes_save_note', array( __CLASS__, 'ajax_save_note' ) );
 		add_action( 'wp_ajax_ratnotes_delete_note', array( __CLASS__, 'ajax_delete_note' ) );
 		add_action( 'wp_ajax_nopriv_ratnotes_delete_note', array( __CLASS__, 'ajax_delete_note' ) );
+		add_action( 'wp_ajax_ratnotes_restore_note', array( __CLASS__, 'ajax_restore_note' ) );
+		add_action( 'wp_ajax_nopriv_ratnotes_restore_note', array( __CLASS__, 'ajax_restore_note' ) );
 	}
 
 	/**
@@ -189,6 +191,7 @@ class Shortcode {
 				'isLoggedIn' => is_user_logged_in(),
 				'strings' => array(
 					'confirmDelete' => __( 'Are you sure you want to delete this note?', 'ratnotes' ),
+					'confirmDeleteForever' => __( 'Are you sure you want to delete? This will delete this note forever.', 'ratnotes' ),
 					'createNote'    => __( 'Create Note', 'ratnotes' ),
 					'editNote'      => __( 'Edit Note', 'ratnotes' ),
 					'loginRequired' => __( 'You must be logged in to create notes.', 'ratnotes' ),
@@ -508,5 +511,49 @@ class Shortcode {
 		}
 
 		wp_send_json_success( array( 'deleted' => true ) );
+	}
+
+	/**
+	 * AJAX: Restore note from trash.
+	 */
+	public static function ajax_restore_note() {
+		check_ajax_referer( 'ratnotes_frontend', 'nonce' );
+
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => __( 'You must be logged in.', 'ratnotes' ) ) );
+		}
+
+		$note_id = isset( $_POST['id'] ) ? intval( $_POST['id'] ) : 0;
+
+		if ( ! $note_id ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid note ID.', 'ratnotes' ) ) );
+		}
+
+		$post = get_post( $note_id );
+		if ( ! $post || 'ratnote' !== $post->post_type || get_current_user_id() !== (int) $post->post_author ) {
+			wp_send_json_error( array( 'message' => __( 'Note not found.', 'ratnotes' ) ) );
+		}
+
+		$result = wp_untrash_post( $note_id );
+		if ( ! $result ) {
+			wp_send_json_error( array( 'message' => __( 'Could not restore note.', 'ratnotes' ) ) );
+		}
+
+		$publish_result = wp_update_post(
+			array(
+				'ID'          => $note_id,
+				'post_status' => 'publish',
+			),
+			true
+		);
+
+		if ( is_wp_error( $publish_result ) ) {
+			wp_send_json_error( array( 'message' => __( 'Note restored, but could not set publish status.', 'ratnotes' ) ) );
+		}
+
+		update_post_meta( $note_id, 'ratnotes_is_trashed', 0 );
+		delete_post_meta( $note_id, 'ratnotes_trashed_at' );
+
+		wp_send_json_success( array( 'restored' => true ) );
 	}
 }

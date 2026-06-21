@@ -357,6 +357,23 @@
 	line-height: 1.2;
 }
 
+.ratnotes-frontend-note-restore {
+	margin-top: 10px;
+	align-self: flex-start;
+	border: none;
+	background: transparent;
+	color: #89b4fa;
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+	padding: 0;
+	text-decoration: underline;
+}
+
+.ratnotes-frontend-note-restore:hover {
+	color: #b4befe;
+}
+
 /* Empty State */
 .ratnotes-frontend-empty {
 	display: flex;

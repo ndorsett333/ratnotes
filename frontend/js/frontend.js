@@ -62,6 +62,9 @@
             // Delete button
             this.$container.on('click', '.ratnotes-frontend-delete-btn', () => this.deleteNote());
 
+            // Restore link on trash cards
+            this.$container.on('click', '.ratnotes-frontend-note-restore', (e) => this.restoreFromTrash(e));
+
             // Archive button
             this.$container.on('click', '.ratnotes-frontend-archive-btn', () => this.archiveNote());
 
@@ -70,7 +73,7 @@
 
             // Note card click
             this.$container.on('click', '.ratnotes-frontend-note', (e) => {
-                if (!$(e.target).closest('.ratnotes-frontend-actions').length) {
+                if (!$(e.target).closest('.ratnotes-frontend-actions, .ratnotes-frontend-note-restore').length) {
                     const noteId = $(e.currentTarget).data('id');
                     this.openModal(noteId);
                 }
@@ -211,6 +214,9 @@
                 `<span class="ratnotes-frontend-label">${this.escapeHtml(label)}</span>`
             ).join('');
             const categories = (note.categories || []).map(category => this.escapeHtml(category.name)).join(', ');
+            const restoreLink = this.currentStatus === 'trash'
+                ? `<button type="button" class="ratnotes-frontend-note-restore" data-id="${note.id}">Remove From Trash</button>`
+                : '';
 
             return `
                 <div class="ratnotes-frontend-note ${pinnedClass}"
@@ -219,6 +225,7 @@
                     <div class="ratnotes-frontend-note-content">${this.escapeHtml(note.content)}</div>
                     ${labels ? `<div class="ratnotes-frontend-note-labels">${labels}</div>` : ''}
                     ${categories ? `<div class="ratnotes-frontend-note-category">${categories}</div>` : ''}
+                    ${restoreLink}
                 </div>
             `;
         },
@@ -340,6 +347,10 @@
 
             if (!confirm(ratnotesFrontendData.strings.confirmDelete)) return;
 
+            if (this.currentStatus === 'trash' && !confirm(ratnotesFrontendData.strings.confirmDeleteForever)) {
+                return;
+            }
+
             try {
                 const response = await $.ajax({
                     url: ratnotesFrontendData.ajaxUrl,
@@ -361,6 +372,38 @@
             } catch (error) {
                 console.error('Error deleting note:', error);
                 this.showError('Failed to delete note');
+            }
+        },
+
+        /**
+         * Restore note from trash from card link.
+         */
+        restoreFromTrash: async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const noteId = $(e.currentTarget).data('id');
+            if (!noteId) return;
+
+            try {
+                const response = await $.ajax({
+                    url: ratnotesFrontendData.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'ratnotes_restore_note',
+                        nonce: ratnotesFrontendData.nonce,
+                        id: noteId
+                    }
+                });
+
+                if (response.success) {
+                    this.loadNotes();
+                } else {
+                    this.showError(response.data?.message || 'Failed to restore note');
+                }
+            } catch (error) {
+                console.error('Error restoring note:', error);
+                this.showError('Failed to restore note');
             }
         },
 
