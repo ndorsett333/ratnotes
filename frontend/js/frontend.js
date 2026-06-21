@@ -14,6 +14,7 @@
         notes: [],
         categories: [],
         currentNote: null,
+        selectedModalCategoryIds: [],
         currentStatus: 'active',
         currentCategory: 'all',
         isLoading: false,
@@ -70,6 +71,18 @@
 
             // Pin button
             this.$container.on('click', '.ratnotes-frontend-pin-btn', () => this.togglePin());
+
+            // Modal categories dropdown
+            this.$container.on('click', '.ratnotes-frontend-category-trigger', (e) => this.toggleModalCategoryDropdown(e));
+            this.$container.on('change', '.ratnotes-frontend-category-option input[type="checkbox"]', (e) => this.handleModalCategoryChange(e));
+
+            // Close category dropdown when clicking outside it
+            $(document).on('click', (e) => {
+                const $target = $(e.target);
+                if (!$target.closest('.ratnotes-frontend-category-picker').length) {
+                    this.$container.find('.ratnotes-frontend-category-picker').removeClass('open');
+                }
+            });
 
             // Note card click
             this.$container.on('click', '.ratnotes-frontend-note', (e) => {
@@ -138,6 +151,8 @@
                     this.categories = response.data || [];
                     this.renderCategories();
                     this.updateSelectedCategoryDisplay();
+                    this.renderModalCategoryDropdown();
+                    this.updateModalCategoryTriggerText();
                 }
             } catch (error) {
                 console.error('Error loading categories:', error);
@@ -278,10 +293,13 @@
             const $title = $modal.find('.ratnotes-frontend-note-title');
             const $content = $modal.find('.ratnotes-frontend-note-content');
             const $pinButton = $modal.find('.ratnotes-frontend-pin-btn');
+            const $categoryPicker = $modal.find('.ratnotes-frontend-category-picker');
 
             // Reset modal
             $title.val('');
             $content.val('');
+            this.selectedModalCategoryIds = [];
+            $categoryPicker.removeClass('open');
 
             if (this.currentNote && this.currentNote.is_archived) {
                 $pinButton.hide();
@@ -292,7 +310,11 @@
             if (this.currentNote) {
                 $title.val(this.currentNote.title);
                 $content.val(this.currentNote.content);
+                this.selectedModalCategoryIds = (this.currentNote.categories || []).map(category => String(category.id));
             }
+
+            this.renderModalCategoryDropdown();
+            this.updateModalCategoryTriggerText();
 
             $modal.fadeIn(200);
             $title.focus();
@@ -304,6 +326,7 @@
         closeModal: function() {
             this.$container.find('.ratnotes-frontend-modal').fadeOut(200);
             this.currentNote = null;
+            this.selectedModalCategoryIds = [];
         },
 
         /**
@@ -330,7 +353,9 @@
                         title: title,
                         content: content,
                         is_pinned: this.currentNote ? this.currentNote.is_pinned : false,
-                        is_archived: this.currentNote ? this.currentNote.is_archived : false
+                        is_archived: this.currentNote ? this.currentNote.is_archived : false,
+                        category_ids: this.selectedModalCategoryIds,
+                        category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
                     }
                 });
 
@@ -433,7 +458,9 @@
                         title: this.currentNote.title,
                         content: this.currentNote.content,
                         is_pinned: this.currentNote.is_pinned,
-                        is_archived: !isArchived
+                        is_archived: !isArchived,
+                        category_ids: this.selectedModalCategoryIds,
+                        category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
                     }
                 });
 
@@ -466,7 +493,9 @@
                         title: this.currentNote.title,
                         content: this.currentNote.content,
                         is_pinned: !this.currentNote.is_pinned,
-                        is_archived: this.currentNote.is_archived
+                        is_archived: this.currentNote.is_archived,
+                        category_ids: this.selectedModalCategoryIds,
+                        category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
                     }
                 });
 
@@ -510,6 +539,82 @@
          */
         toggleSidebar: function(isOpen) {
             this.$container.toggleClass('sidebar-open', !!isOpen);
+        },
+
+        /**
+         * Render category options for modal dropdown.
+         */
+        renderModalCategoryDropdown: function() {
+            const $menu = this.$container.find('.ratnotes-frontend-category-menu');
+            if (!$menu.length) return;
+
+            if (!this.categories.length) {
+                $menu.html('<div class="ratnotes-frontend-category-empty">No categories available</div>');
+                return;
+            }
+
+            const items = this.categories.map((category) => {
+                const categoryId = String(category.id);
+                const checked = this.selectedModalCategoryIds.includes(categoryId) ? 'checked' : '';
+                return `
+                    <label class="ratnotes-frontend-category-option">
+                        <input type="checkbox" value="${categoryId}" ${checked} />
+                        <span>${this.escapeHtml(category.name)}</span>
+                    </label>
+                `;
+            });
+
+            $menu.html(items.join(''));
+        },
+
+        /**
+         * Toggle modal category dropdown.
+         */
+        toggleModalCategoryDropdown: function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const $picker = $(e.currentTarget).closest('.ratnotes-frontend-category-picker');
+            $picker.toggleClass('open');
+        },
+
+        /**
+         * Handle category checkbox change inside modal.
+         */
+        handleModalCategoryChange: function(e) {
+            const categoryId = String($(e.currentTarget).val());
+            if ($(e.currentTarget).is(':checked')) {
+                if (!this.selectedModalCategoryIds.includes(categoryId)) {
+                    this.selectedModalCategoryIds.push(categoryId);
+                }
+            } else {
+                this.selectedModalCategoryIds = this.selectedModalCategoryIds.filter((id) => id !== categoryId);
+            }
+
+            this.updateModalCategoryTriggerText();
+        },
+
+        /**
+         * Update modal category dropdown button label.
+         */
+        updateModalCategoryTriggerText: function() {
+            const $label = this.$container.find('.ratnotes-frontend-category-trigger-text');
+            if (!$label.length) return;
+
+            if (!this.selectedModalCategoryIds.length) {
+                $label.text('Categories');
+                return;
+            }
+
+            const selectedNames = this.categories
+                .filter((category) => this.selectedModalCategoryIds.includes(String(category.id)))
+                .map((category) => category.name);
+
+            if (selectedNames.length <= 2) {
+                $label.text(selectedNames.join(', '));
+                return;
+            }
+
+            $label.text(`${selectedNames.length} categories selected`);
         },
 
         /**

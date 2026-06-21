@@ -329,6 +329,13 @@ $site_url  = home_url();
 									<button class="ratnotes-frontend-delete-btn button">
 										<span class="dashicons dashicons-trash"></span>
 									</button>
+									<div class="ratnotes-frontend-category-picker">
+										<button type="button" class="ratnotes-frontend-category-trigger button" aria-haspopup="true" aria-expanded="false">
+											<span class="dashicons dashicons-category"></span>
+											<span class="ratnotes-frontend-category-trigger-text"><?php esc_html_e( 'Categories', 'ratnotes' ); ?></span>
+										</button>
+										<div class="ratnotes-frontend-category-menu"></div>
+									</div>
 									<button class="ratnotes-frontend-save-btn button button-primary">
 										<?php esc_html_e( 'Close', 'ratnotes' ); ?>
 									</button>

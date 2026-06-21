@@ -147,6 +147,13 @@ class Shortcode {
 							<button class="ratnotes-frontend-delete-btn button">
 								<span class="dashicons dashicons-trash"></span>
 							</button>
+							<div class="ratnotes-frontend-category-picker">
+								<button type="button" class="ratnotes-frontend-category-trigger button" aria-haspopup="true" aria-expanded="false">
+									<span class="dashicons dashicons-category"></span>
+									<span class="ratnotes-frontend-category-trigger-text"><?php esc_html_e( 'Categories', 'ratnotes' ); ?></span>
+								</button>
+								<div class="ratnotes-frontend-category-menu"></div>
+							</div>
 							<button class="ratnotes-frontend-save-btn button button-primary">
 								<?php esc_html_e( 'Close', 'ratnotes' ); ?>
 							</button>
@@ -361,26 +368,12 @@ class Shortcode {
 			wp_send_json_success( array() );
 		}
 
-		$post_ids = get_posts(
+		$terms = get_terms(
 			array(
-				'post_type'      => 'ratnote',
-				'post_status'    => 'any',
-				'author'         => get_current_user_id(),
-				'fields'         => 'ids',
-				'posts_per_page' => -1,
-			)
-		);
-
-		if ( empty( $post_ids ) ) {
-			wp_send_json_success( array() );
-		}
-
-		$terms = wp_get_object_terms(
-			$post_ids,
-			'ratnote_category',
-			array(
-				'orderby' => 'name',
-				'order'   => 'ASC',
+				'taxonomy'   => 'ratnote_category',
+				'hide_empty' => false,
+				'orderby'    => 'name',
+				'order'      => 'ASC',
 			)
 		);
 
@@ -419,6 +412,19 @@ class Shortcode {
 		$color     = isset( $_POST['color'] ) ? sanitize_hex_color( $_POST['color'] ) : '#ffffff';
 		$is_pinned = isset( $_POST['is_pinned'] ) ? rest_sanitize_boolean( $_POST['is_pinned'] ) : false;
 		$is_archived = isset( $_POST['is_archived'] ) ? rest_sanitize_boolean( $_POST['is_archived'] ) : false;
+		$has_category_ids = isset( $_POST['category_ids'] ) || isset( $_POST['category_ids_json'] );
+		$category_ids = array();
+
+		if ( isset( $_POST['category_ids_json'] ) ) {
+			$decoded_category_ids = json_decode( wp_unslash( $_POST['category_ids_json'] ), true );
+			if ( is_array( $decoded_category_ids ) ) {
+				$category_ids = $decoded_category_ids;
+			}
+		} elseif ( isset( $_POST['category_ids'] ) ) {
+			$category_ids = (array) $_POST['category_ids'];
+		}
+
+		$category_ids = array_values( array_unique( array_filter( array_map( 'intval', $category_ids ) ) ) );
 
 		if ( $note_id ) {
 			// Update existing note.
@@ -462,7 +468,26 @@ class Shortcode {
 			update_post_meta( $note_id, 'ratnotes_is_trashed', '0' );
 		}
 
+		if ( $has_category_ids ) {
+			wp_set_post_terms( $note_id, $category_ids, 'ratnote_category', false );
+		}
+
 		$post = get_post( $note_id );
+		$categories = wp_get_post_terms( $post->ID, 'ratnote_category' );
+		if ( is_wp_error( $categories ) ) {
+			$categories = array();
+		}
+
+		$category_data = array_map(
+			static function ( $term ) {
+				return array(
+					'id'   => (int) $term->term_id,
+					'name' => $term->name,
+				);
+			},
+			$categories
+		);
+
 		wp_send_json_success(
 			array(
 				'id'          => (int) $post->ID,
@@ -472,6 +497,7 @@ class Shortcode {
 				'is_pinned'   => (bool) get_post_meta( $post->ID, 'ratnotes_is_pinned', true ),
 				'is_archived' => (bool) get_post_meta( $post->ID, 'ratnotes_is_archived', true ),
 				'is_trashed'  => (bool) get_post_meta( $post->ID, 'ratnotes_is_trashed', true ),
+				'categories'  => $category_data,
 				'labels'      => get_post_meta( $post->ID, 'ratnotes_labels', true ) ?: array(),
 				'created_at'  => $post->post_date,
 				'updated_at'  => $post->post_modified,

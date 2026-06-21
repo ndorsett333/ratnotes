@@ -520,6 +520,7 @@
 .ratnotes-frontend-actions {
 	display: flex;
 	gap: 8px;
+	align-items: center;
 }
 
 .ratnotes-frontend-actions .button {
@@ -555,6 +556,64 @@
 	line-height: 18px;
 	display: inline-block;
 	text-align: center;
+}
+
+.ratnotes-frontend-category-picker {
+	position: relative;
+	margin-left: auto;
+}
+
+.ratnotes-frontend-category-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	max-width: 220px;
+}
+
+.ratnotes-frontend-category-trigger-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ratnotes-frontend-category-menu {
+	position: absolute;
+	right: 0;
+	bottom: calc(100% + 8px);
+	min-width: 220px;
+	max-height: 220px;
+	overflow-y: auto;
+	padding: 8px;
+	border: 1px solid #585b70;
+	border-radius: 8px;
+	background: #1e1e2e;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+	display: none;
+	z-index: 100001;
+}
+
+.ratnotes-frontend-category-picker.open .ratnotes-frontend-category-menu {
+	display: block;
+}
+
+.ratnotes-frontend-category-option {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 4px;
+	font-size: 13px;
+	color: #cdd6f4;
+	cursor: pointer;
+}
+
+.ratnotes-frontend-category-option input[type="checkbox"] {
+	margin: 0;
+}
+
+.ratnotes-frontend-category-empty {
+	padding: 8px 6px;
+	font-size: 13px;
+	color: #a6adc8;
 }
 
 /* Responsive */
@@ -593,5 +652,22 @@
 	.ratnotes-frontend-actions {
 		flex-wrap: wrap;
 		justify-content: flex-end;
+	}
+
+	.ratnotes-frontend-category-picker {
+		width: 100%;
+		margin-left: 0;
+	}
+
+	.ratnotes-frontend-category-trigger {
+		width: 100%;
+		justify-content: flex-start;
+	}
+
+	.ratnotes-frontend-category-menu {
+		left: 0;
+		right: auto;
+		width: 100%;
+		min-width: 0;
 	}
 }
