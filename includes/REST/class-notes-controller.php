@@ -294,7 +294,11 @@ class Notes_Controller extends WP_REST_Controller {
 			update_post_meta( $note_id, 'ratnotes_is_pinned', $request->get_param( 'is_pinned' ) ? 1 : 0 );
 		}
 		if ( $request->has_param( 'is_archived' ) ) {
-			update_post_meta( $note_id, 'ratnotes_is_archived', $request->get_param( 'is_archived' ) ? 1 : 0 );
+			$is_archived = $request->get_param( 'is_archived' ) ? 1 : 0;
+			update_post_meta( $note_id, 'ratnotes_is_archived', $is_archived );
+			if ( $is_archived ) {
+				update_post_meta( $note_id, 'ratnotes_is_pinned', 0 );
+			}
 		}
 		if ( $request->has_param( 'labels' ) ) {
 			update_post_meta( $note_id, 'ratnotes_labels', array_map( 'sanitize_text_field', (array) $request->get_param( 'labels' ) ) );

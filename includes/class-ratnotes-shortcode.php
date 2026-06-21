@@ -437,6 +437,9 @@ class Shortcode {
 
 			update_post_meta( $note_id, 'ratnotes_is_pinned', $is_pinned ? '1' : '0' );
 			update_post_meta( $note_id, 'ratnotes_is_archived', $is_archived ? '1' : '0' );
+			if ( $is_archived ) {
+				update_post_meta( $note_id, 'ratnotes_is_pinned', '0' );
+			}
 			update_post_meta( $note_id, 'ratnotes_is_trashed', '0' );
 		} else {
 			// Create new note.

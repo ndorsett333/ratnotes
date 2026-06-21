@@ -277,10 +277,17 @@
             const $modal = this.$container.find('.ratnotes-frontend-modal');
             const $title = $modal.find('.ratnotes-frontend-note-title');
             const $content = $modal.find('.ratnotes-frontend-note-content');
+            const $pinButton = $modal.find('.ratnotes-frontend-pin-btn');
 
             // Reset modal
             $title.val('');
             $content.val('');
+
+            if (this.currentNote && this.currentNote.is_archived) {
+                $pinButton.hide();
+            } else {
+                $pinButton.show();
+            }
 
             if (this.currentNote) {
                 $title.val(this.currentNote.title);

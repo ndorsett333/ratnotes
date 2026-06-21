@@ -190,6 +190,12 @@
             $('#ratnotes-note-title').val('');
             $('#ratnotes-note-content').val('');
 
+            if (this.currentNote && this.currentNote.is_archived) {
+                $('#ratnotes-pin-btn').hide();
+            } else {
+                $('#ratnotes-pin-btn').show();
+            }
+
             if (this.currentNote) {
                 $('#ratnotes-note-title').val(this.currentNote.title || '');
                 $('#ratnotes-note-content').val(this.currentNote.content || '');
