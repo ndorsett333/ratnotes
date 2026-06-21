@@ -134,6 +134,7 @@
                 if (response.success) {
                     this.categories = response.data || [];
                     this.renderCategories();
+                    this.updateSelectedCategoryDisplay();
                 }
             } catch (error) {
                 console.error('Error loading categories:', error);
@@ -155,6 +156,26 @@
             ];
 
             $list.html(items.join(''));
+        },
+
+        /**
+         * Update selected category label above notes.
+         */
+        updateSelectedCategoryDisplay: function() {
+            const $label = this.$container.find('.ratnotes-frontend-selected-category');
+            if (!$label.length) return;
+
+            if (this.currentCategory === 'all') {
+                $label.hide().text('');
+                return;
+            }
+
+            const category = this.categories.find(item => String(item.id) === String(this.currentCategory));
+            const categoryName = category ? category.name : 'Selected Category';
+
+            $label
+                .text(`Category: ${categoryName}`)
+                .show();
         },
 
         /**
@@ -189,6 +210,7 @@
             const labels = (note.labels || []).map(label =>
                 `<span class="ratnotes-frontend-label">${this.escapeHtml(label)}</span>`
             ).join('');
+            const categories = (note.categories || []).map(category => this.escapeHtml(category.name)).join(', ');
 
             return `
                 <div class="ratnotes-frontend-note ${pinnedClass}"
@@ -196,6 +218,7 @@
                     ${note.title ? `<div class="ratnotes-frontend-note-title">${this.escapeHtml(note.title)}</div>` : ''}
                     <div class="ratnotes-frontend-note-content">${this.escapeHtml(note.content)}</div>
                     ${labels ? `<div class="ratnotes-frontend-note-labels">${labels}</div>` : ''}
+                    ${categories ? `<div class="ratnotes-frontend-note-category">${categories}</div>` : ''}
                 </div>
             `;
         },
@@ -427,6 +450,7 @@
             const selectedCategory = $(e.currentTarget).data('id');
             this.currentCategory = selectedCategory;
             this.renderCategories();
+            this.updateSelectedCategoryDisplay();
             this.toggleSidebar(false);
             this.loadNotes();
         },

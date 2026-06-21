@@ -289,6 +289,8 @@ $site_url  = home_url();
 						</button>
 					</div>
 
+					<div class="ratnotes-frontend-selected-category" style="display: none;"></div>
+
 					<div class="ratnotes-frontend-grid">
 						<div class="ratnotes-frontend-loading">
 							<span class="spinner is-active"></span>

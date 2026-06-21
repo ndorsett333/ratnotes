@@ -212,6 +212,17 @@
 	background-color: #b4befe;
 }
 
+.ratnotes-frontend-selected-category {
+	margin: 0 0 16px;
+	padding: 10px 12px;
+	border-left: 3px solid #89b4fa;
+	background: rgba(137, 180, 250, 0.08);
+	border-radius: 8px;
+	color: #cdd6f4;
+	font-size: 14px;
+	font-weight: 500;
+}
+
 /* Grid */
 .ratnotes-frontend-grid {
 	display: grid;
@@ -248,6 +259,8 @@
 
 /* Note Card */
 .ratnotes-frontend-note {
+	display: flex;
+	flex-direction: column;
 	background-color: #313244;
 	border: 1px solid #45475a;
 	border-radius: 8px;
@@ -312,6 +325,7 @@
 	line-height: 1.6;
 	white-space: pre-wrap;
 	word-wrap: break-word;
+	flex: 1;
 }
 
 .ratnotes-frontend-note-labels {
@@ -328,6 +342,19 @@
 	border-radius: 12px;
 	font-size: 12px;
 	color: #a6adc8;
+}
+
+.ratnotes-frontend-note-category {
+	margin-top: auto;
+	display: inline-flex;
+	align-self: flex-start;
+	padding: 4px 10px;
+	border-radius: 999px;
+	background: rgba(137, 180, 250, 0.14);
+	color: #89b4fa;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.2;
 }
 
 /* Empty State */
