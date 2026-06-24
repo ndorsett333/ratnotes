@@ -223,6 +223,25 @@
 	font-weight: 500;
 }
 
+.ratnotes-frontend-selected-category-wrap {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+
+.ratnotes-frontend-category-create-btn {
+	display: none;
+	margin: 0;
+	align-self: flex-start;
+	background-color: #89b4fa;
+	color: #1e1e2e;
+}
+
+.ratnotes-frontend-category-create-btn:hover {
+	background-color: #b4befe;
+}
+
 /* Grid */
 .ratnotes-frontend-grid {
 	display: grid;

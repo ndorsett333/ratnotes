@@ -106,7 +106,10 @@ class Shortcode {
 				<?php endif; ?>
 			</div>
 
-			<div class="ratnotes-frontend-selected-category" style="display: none;"></div>
+			<div class="ratnotes-frontend-selected-category-wrap">
+				<div class="ratnotes-frontend-selected-category" style="display: none;"></div>
+				<button type="button" class="ratnotes-frontend-category-create-btn button button-primary" style="display: none;"></button>
+			</div>
 
 			<div class="ratnotes-frontend-grid">
 				<div class="ratnotes-frontend-loading">

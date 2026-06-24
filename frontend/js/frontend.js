@@ -43,8 +43,9 @@
             // Search
             this.$container.on('input', '.ratnotes-frontend-search-input', (e) => this.handleSearch(e));
 
-            // Create button
+            // Create buttons
             this.$container.on('click', '.ratnotes-frontend-create-btn', () => this.openModal());
+            this.$container.on('click', '.ratnotes-frontend-category-create-btn', () => this.openModalFromCurrentCategory());
 
             // Sidebar
             this.$container.on('click', '.ratnotes-frontend-menu-toggle', () => this.toggleSidebar(true));
@@ -181,19 +182,26 @@
          */
         updateSelectedCategoryDisplay: function() {
             const $label = this.$container.find('.ratnotes-frontend-selected-category');
+            const $button = this.$container.find('.ratnotes-frontend-category-create-btn');
             if (!$label.length) return;
 
             if (this.currentCategory === 'all') {
                 $label.hide().text('');
+                $button.hide().text('');
                 return;
             }
 
             const category = this.categories.find(item => String(item.id) === String(this.currentCategory));
             const categoryName = category ? category.name : 'Selected Category';
+            const buttonLabel = category ? `New ${categoryName} Note` : 'New Note';
 
             $label
                 .text(`Category: ${categoryName}`)
                 .show();
+
+            $button
+                .text(buttonLabel)
+                .css('display', 'inline-flex');
         },
 
         /**
@@ -281,7 +289,7 @@
         /**
          * Open modal for create/edit.
          */
-        openModal: function(noteId = null) {
+        openModal: function(noteId = null, presetCategoryIds = []) {
             if (!ratnotesFrontendData.isLoggedIn) {
                 this.showError(ratnotesFrontendData.strings.loginRequired);
                 return;
@@ -298,7 +306,9 @@
             // Reset modal
             $title.val('');
             $content.val('');
-            this.selectedModalCategoryIds = [];
+            this.selectedModalCategoryIds = Array.isArray(presetCategoryIds)
+                ? presetCategoryIds.map((id) => String(id))
+                : [];
             $categoryPicker.removeClass('open');
 
             if (this.currentNote && this.currentNote.is_archived) {
@@ -318,6 +328,18 @@
 
             $modal.fadeIn(200);
             $title.focus();
+        },
+
+        /**
+         * Open a new note with the current category preselected.
+         */
+        openModalFromCurrentCategory: function() {
+            if (this.currentCategory === 'all') {
+                this.openModal();
+                return;
+            }
+
+            this.openModal(null, [this.currentCategory]);
         },
 
         /**
