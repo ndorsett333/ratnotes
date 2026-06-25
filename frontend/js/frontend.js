@@ -186,8 +186,8 @@
             if (!$label.length) return;
 
             if (this.currentCategory === 'all') {
-                $label.hide().text('');
-                $button.hide().text('');
+                $label.hide();
+                $button.hide();
                 return;
             }
 
@@ -200,8 +200,10 @@
                 .show();
 
             $button
-                .text(buttonLabel)
-                .css('display', 'inline-flex');
+                .find('.ratnotes-frontend-category-create-text')
+                .text(buttonLabel);
+            
+            $button.css('display', 'inline-flex');
         },
 
         /**

@@ -70,7 +70,7 @@ class Shortcode {
 			<?php if ( 'true' === $atts['filter'] ) : ?>
 			<div class="ratnotes-frontend-nav">
 				<button class="ratnotes-frontend-nav-item active" data-status="active">
-					<span class="dashicons dashicons-admin-notes"></span>
+				<span class="dashicons dashicons-admin-page"></span>
 					<?php esc_html_e( 'Notes', 'ratnotes' ); ?>
 				</button>
 				<button class="ratnotes-frontend-nav-item" data-status="archived">
@@ -108,9 +108,9 @@ class Shortcode {
 
 			<div class="ratnotes-frontend-selected-category-wrap">
 				<div class="ratnotes-frontend-selected-category" style="display: none;"></div>
-				<button type="button" class="ratnotes-frontend-category-create-btn button button-primary" style="display: none;"></button>
-			</div>
-
+			<button type="button" class="ratnotes-frontend-category-create-btn button button-primary" style="display: none;">
+				<span class="dashicons dashicons-plus"></span>
+			</button>
 			<div class="ratnotes-frontend-grid">
 				<div class="ratnotes-frontend-loading">
 					<span class="spinner is-active"></span>
