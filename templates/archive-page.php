@@ -149,6 +149,7 @@ $site_url  = home_url();
 			font-size: 28px;
 			font-weight: 600;
 			margin: 0 0 25px;
+			padding-left: 30px;
 		}
 
 		/* Login Notice */
@@ -206,6 +207,13 @@ $site_url  = home_url();
 
 		.ratnotes-archive-footer a:hover {
 			text-decoration: underline;
+		}
+
+		@media (max-width: 480px) {
+			.ratnotes-archive-main {
+				padding-left: 0;
+				padding-right: 0;
+			}
 		}
 	</style>
 </head>

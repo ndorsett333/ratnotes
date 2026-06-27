@@ -723,16 +723,21 @@
 
 	.ratnotes-frontend-actions {
 		flex-wrap: wrap;
-		justify-content: flex-end;
+		justify-content: flex-start;
+		gap: 6px;
 	}
 
 	.ratnotes-frontend-category-picker {
-		width: 100%;
+		width: auto;
+		max-width: 150px;
 		margin-left: 0;
+		flex: 0 1 auto;
 	}
 
 	.ratnotes-frontend-category-trigger {
-		width: 100%;
+		width: auto;
+		max-width: 150px;
+		padding: 8px 10px;
 		justify-content: flex-start;
 	}
 
