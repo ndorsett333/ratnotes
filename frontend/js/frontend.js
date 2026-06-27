@@ -42,6 +42,7 @@
 
             // Search
             this.$container.on('input', '.ratnotes-frontend-search-input', (e) => this.handleSearch(e));
+            this.$container.on('search', '.ratnotes-frontend-search-input', (e) => this.handleSearch(e));
 
             // Create buttons
             this.$container.on('click', '.ratnotes-frontend-create-btn', () => this.openModal());
@@ -51,6 +52,7 @@
             this.$container.on('click', '.ratnotes-frontend-menu-toggle', () => this.toggleSidebar(true));
             this.$container.on('click', '.ratnotes-frontend-sidebar-close, .ratnotes-frontend-sidebar-overlay', () => this.toggleSidebar(false));
             this.$container.on('click', '.ratnotes-frontend-category-item', (e) => this.handleCategoryClick(e));
+            this.$container.on('click', '.ratnotes-frontend-clear-category', (e) => this.clearCategoryFilter(e));
 
             // Modal close (X button) - saves note
             this.$container.on('click', '.ratnotes-frontend-modal-close', () => this.saveNote());
@@ -194,9 +196,13 @@
             const category = this.categories.find(item => String(item.id) === String(this.currentCategory));
             const categoryName = category ? category.name : 'Selected Category';
             const buttonLabel = category ? `New ${categoryName} Note` : 'New Note';
+            const safeCategoryName = this.escapeHtml(categoryName);
 
             $label
-                .text(`Category: ${categoryName}`)
+                .html(
+                    `<span class="ratnotes-frontend-selected-category-text">Category: ${safeCategoryName}</span>` +
+                    '<button type="button" class="ratnotes-frontend-clear-category" aria-label="Clear category filter">&times;</button>'
+                )
                 .show();
 
             $button
@@ -204,6 +210,19 @@
                 .text(buttonLabel);
             
             $button.css('display', 'inline-flex');
+        },
+
+        /**
+         * Clear selected category filter and return to default view.
+         */
+        clearCategoryFilter: function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            this.currentCategory = 'all';
+            this.renderCategories();
+            this.updateSelectedCategoryDisplay();
+            this.loadNotes();
         },
 
         /**
@@ -646,6 +665,12 @@
          */
         handleSearch: function(e) {
             const query = e.target.value.trim();
+
+            if (!query) {
+                this.loadNotes();
+                return;
+            }
+
             const filtered = this.notes.filter(note =>
                 (note.title && note.title.toLowerCase().includes(query.toLowerCase())) ||
                 (note.content && note.content.toLowerCase().includes(query.toLowerCase()))
