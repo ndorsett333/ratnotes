@@ -210,9 +210,42 @@ $site_url  = home_url();
 		}
 
 		@media (max-width: 480px) {
+			.ratnotes-archive-header {
+				flex-direction: column;
+				align-items: flex-start;
+				gap: 12px;
+				padding: 14px 16px;
+			}
+
+			.ratnotes-archive-logo {
+				font-size: 18px;
+			}
+
+			.ratnotes-archive-logo .dashicons {
+				font-size: 24px;
+				width: 24px;
+				height: 24px;
+			}
+
+			.ratnotes-archive-nav {
+				width: 100%;
+				justify-content: space-between;
+				gap: 8px;
+			}
+
+			.ratnotes-archive-nav a {
+				padding: 8px 10px;
+				text-align: center;
+			}
+
 			.ratnotes-archive-main {
 				padding-left: 0;
 				padding-right: 0;
+			}
+
+			.ratnotes-archive-title {
+				padding-left: 16px;
+				padding-right: 16px;
 			}
 		}
 	</style>
