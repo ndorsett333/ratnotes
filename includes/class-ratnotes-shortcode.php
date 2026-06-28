@@ -28,6 +28,7 @@ class Shortcode {
 		add_action( 'wp_ajax_nopriv_ratnotes_delete_note', array( __CLASS__, 'ajax_delete_note' ) );
 		add_action( 'wp_ajax_ratnotes_restore_note', array( __CLASS__, 'ajax_restore_note' ) );
 		add_action( 'wp_ajax_nopriv_ratnotes_restore_note', array( __CLASS__, 'ajax_restore_note' ) );
+		add_action( 'wp_ajax_ratnotes_create_category', array( __CLASS__, 'ajax_create_category' ) );
 	}
 
 	/**
@@ -63,6 +64,15 @@ class Shortcode {
 					<button type="button" class="ratnotes-frontend-sidebar-close" aria-label="<?php esc_attr_e( 'Close categories', 'ratnotes' ); ?>">
 						<span class="dashicons dashicons-no"></span>
 					</button>
+				</div>
+				<div class="ratnotes-frontend-category-create-wrap">
+					<form class="ratnotes-frontend-category-create-form">
+						<input type="text" class="ratnotes-frontend-category-create-input" placeholder="<?php esc_attr_e( 'New category name...', 'ratnotes' ); ?>" maxlength="100" />
+						<button type="submit" class="ratnotes-frontend-category-create-submit button button-primary">
+							<span class="dashicons dashicons-plus"></span>
+						</button>
+					</form>
+					<div class="ratnotes-frontend-category-create-error" style="display:none;"></div>
 				</div>
 				<nav class="ratnotes-frontend-category-list"></nav>
 			</aside>
@@ -400,7 +410,39 @@ class Shortcode {
 	}
 
 	/**
-	 * AJAX: Save note.
+		 * AJAX: Create a new category.
+		 */
+		public static function ajax_create_category() {
+			check_ajax_referer( 'ratnotes_frontend', 'nonce' );
+
+			if ( ! is_user_logged_in() || ! current_user_can( 'manage_categories' ) ) {
+				wp_send_json_error( array( 'message' => __( 'You do not have permission to create categories.', 'ratnotes' ) ) );
+			}
+
+			$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+
+			if ( empty( $name ) ) {
+				wp_send_json_error( array( 'message' => __( 'Category name cannot be empty.', 'ratnotes' ) ) );
+			}
+
+			$result = wp_insert_term( $name, 'ratnote_category' );
+
+			if ( is_wp_error( $result ) ) {
+				wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+			}
+
+			$term = get_term( $result['term_id'], 'ratnote_category' );
+
+			wp_send_json_success( array(
+				'id'    => (int) $term->term_id,
+				'name'  => $term->name,
+				'slug'  => $term->slug,
+				'count' => 0,
+			) );
+		}
+
+		/**
+		 * AJAX: Save note.
 	 */
 	public static function ajax_save_note() {
 		check_ajax_referer( 'ratnotes_frontend', 'nonce' );

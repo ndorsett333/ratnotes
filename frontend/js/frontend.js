@@ -53,6 +53,7 @@
             this.$container.on('click', '.ratnotes-frontend-sidebar-close, .ratnotes-frontend-sidebar-overlay', () => this.toggleSidebar(false));
             this.$container.on('click', '.ratnotes-frontend-category-item', (e) => this.handleCategoryClick(e));
             this.$container.on('click', '.ratnotes-frontend-clear-category', (e) => this.clearCategoryFilter(e));
+            this.$container.on('submit', '.ratnotes-frontend-category-create-form', (e) => this.handleCreateCategory(e));
 
             // Modal close (X button) - saves note
             this.$container.on('click', '.ratnotes-frontend-modal-close', () => this.saveNote());
@@ -223,6 +224,48 @@
             this.renderCategories();
             this.updateSelectedCategoryDisplay();
             this.loadNotes();
+        },
+
+        /**
+         * Handle create category form submit.
+         */
+        handleCreateCategory: async function(e) {
+            e.preventDefault();
+
+            const $form = $(e.currentTarget);
+            const $input = $form.find('.ratnotes-frontend-category-create-input');
+            const $error = $form.closest('.ratnotes-frontend-category-create-wrap').find('.ratnotes-frontend-category-create-error');
+            const $submit = $form.find('.ratnotes-frontend-category-create-submit');
+            const name = $input.val().trim();
+
+            if (!name) return;
+
+            $submit.prop('disabled', true);
+            $error.hide();
+
+            try {
+                const response = await $.ajax({
+                    url: ratnotesFrontendData.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'ratnotes_create_category',
+                        nonce: ratnotesFrontendData.nonce,
+                        name: name
+                    }
+                });
+
+                if (response.success) {
+                    $input.val('');
+                    await this.loadCategories();
+                } else {
+                    $error.text(response.data?.message || 'Failed to create category').show();
+                }
+            } catch (err) {
+                console.error('Error creating category:', err);
+                $error.text('Failed to create category').show();
+            } finally {
+                $submit.prop('disabled', false);
+            }
         },
 
         /**

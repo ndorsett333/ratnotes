@@ -295,6 +295,15 @@ $site_url  = home_url();
 								<span class="dashicons dashicons-no"></span>
 							</button>
 						</div>
+						<div class="ratnotes-frontend-category-create-wrap">
+							<form class="ratnotes-frontend-category-create-form">
+								<input type="text" class="ratnotes-frontend-category-create-input" placeholder="<?php esc_attr_e( 'New category name...', 'ratnotes' ); ?>" maxlength="100" />
+								<button type="submit" class="ratnotes-frontend-category-create-submit button button-primary">
+									<span class="dashicons dashicons-plus"></span>
+								</button>
+							</form>
+							<div class="ratnotes-frontend-category-create-error" style="display:none;"></div>
+						</div>
 						<nav class="ratnotes-frontend-category-list"></nav>
 					</aside>
 

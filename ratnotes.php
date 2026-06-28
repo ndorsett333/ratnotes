@@ -3,7 +3,7 @@
  * Plugin Name:       RatNotes
  * Plugin URI:        https://example.com/ratnotes
  * Description:       A Google Keep-like note-taking application for WordPress.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            Nick Dorsett
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants.
-define( 'RATNOTES_VERSION', '1.0.0' );
+define( 'RATNOTES_VERSION', '1.0.1' );
 define( 'RATNOTES_PLUGIN_FILE', __FILE__ );
 define( 'RATNOTES_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'RATNOTES_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

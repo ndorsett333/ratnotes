@@ -86,6 +86,68 @@
 	padding: 12px;
 }
 
+.ratnotes-frontend-category-create-wrap {
+	padding: 12px 12px 4px;
+	border-bottom: 1px solid #45475a;
+}
+
+.ratnotes-frontend-category-create-form {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.ratnotes-frontend-category-create-input {
+	flex: 1;
+	padding: 8px 10px;
+	background: #313244;
+	border: 1px solid #45475a;
+	border-radius: 6px;
+	color: #cdd6f4;
+	font-size: 13px;
+	min-width: 0;
+}
+
+.ratnotes-frontend-category-create-input:focus {
+	outline: none;
+	border-color: #89b4fa;
+	background: #45475a;
+}
+
+.ratnotes-frontend-category-create-input::placeholder {
+	color: #6c7086;
+}
+
+.ratnotes-frontend-category-create-submit {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	width: 32px;
+	height: 32px;
+	flex-shrink: 0;
+	background: #89b4fa;
+	border: none;
+	border-radius: 6px;
+	color: #1e1e2e;
+	cursor: pointer;
+}
+
+.ratnotes-frontend-category-create-submit:hover {
+	background: #b4befe;
+}
+
+.ratnotes-frontend-category-create-submit:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.ratnotes-frontend-category-create-error {
+	margin-top: 6px;
+	font-size: 12px;
+	color: #f38ba8;
+}
+
 .ratnotes-frontend-category-item {
 	text-align: left;
 	border: none;
