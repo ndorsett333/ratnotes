@@ -49,6 +49,7 @@ coverage/
 /docs/
 *.md
 !readme.txt
+PWA-CHECKLIST.md
 
 # Languages
 *.pot

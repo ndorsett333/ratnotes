@@ -60,6 +60,10 @@ $site_url  = home_url();
 <head>
 	<meta charset="<?php bloginfo( 'charset' ); ?>">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="default">
+	<meta name="apple-mobile-web-app-title" content="<?php esc_attr_e( 'RatNotes', 'ratnotes' ); ?>">
+	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo esc_url( RATNOTES_PLUGIN_URL . 'frontend/icons/apple-touch-icon-180.png' ); ?>">
 	<title><?php esc_html_e( 'RatNotes Archive', 'ratnotes' ); ?> - <?php echo esc_html( $site_name ); ?></title>
 	<?php wp_head(); ?>
 	<style>
