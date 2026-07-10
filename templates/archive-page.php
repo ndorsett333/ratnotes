@@ -42,6 +42,8 @@ wp_localize_script(
 		'nonce'      => wp_create_nonce( 'ratnotes_frontend' ),
 		'userId'     => $current_user->ID,
 		'isLoggedIn' => $is_logged_in,
+		'serviceWorkerUrl' => home_url( '/?ratnotes_sw=1' ),
+		'serviceWorkerScope' => '/ratnotes-archive/',
 		'strings'    => array(
 			'confirmDelete' => __( 'Are you sure you want to delete this note?', 'ratnotes' ),
 			'createNote'    => __( 'Create Note', 'ratnotes' ),
@@ -60,10 +62,12 @@ $site_url  = home_url();
 <head>
 	<meta charset="<?php bloginfo( 'charset' ); ?>">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="theme-color" content="#1e1e2e">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-status-bar-style" content="default">
 	<meta name="apple-mobile-web-app-title" content="<?php esc_attr_e( 'RatNotes', 'ratnotes' ); ?>">
-	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo esc_url( RATNOTES_PLUGIN_URL . 'frontend/icons/apple-touch-icon-180.png' ); ?>">
+	<link rel="manifest" href="<?php echo esc_url( RATNOTES_PLUGIN_URL . 'frontend/manifest.json' ); ?>">
+	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo esc_url( RATNOTES_PLUGIN_URL . 'frontend/icons/ratnotes180.png' ); ?>">
 	<title><?php esc_html_e( 'RatNotes Archive', 'ratnotes' ); ?> - <?php echo esc_html( $site_name ); ?></title>
 	<?php wp_head(); ?>
 	<style>

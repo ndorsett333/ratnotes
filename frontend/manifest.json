@@ -1,0 +1,27 @@
+{
+  "name": "RatNotes",
+  "short_name": "RatNotes",
+  "description": "RatNotes archive app",
+  "start_url": "/ratnotes-archive/",
+  "scope": "/ratnotes-archive/",
+  "display": "standalone",
+  "background_color": "#12121f",
+  "theme_color": "#1e1e2e",
+  "icons": [
+    {
+      "src": "icons/ratnotes180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/ratnotes167.png",
+      "sizes": "167x167",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/ratnotes.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

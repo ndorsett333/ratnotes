@@ -28,9 +28,28 @@
             if (!this.$container.length) return;
 
             this.currentStatus = this.$container.data('status') || 'active';
+            this.registerServiceWorker();
             this.bindEvents();
             this.loadCategories();
             this.loadNotes();
+        },
+
+        /**
+         * Register service worker for archive scope.
+         */
+        registerServiceWorker: function() {
+            if (!('serviceWorker' in navigator)) return;
+            if (!ratnotesFrontendData?.serviceWorkerUrl) return;
+
+            window.addEventListener('load', () => {
+                navigator.serviceWorker
+                    .register(ratnotesFrontendData.serviceWorkerUrl, {
+                        scope: ratnotesFrontendData.serviceWorkerScope || '/ratnotes-archive/'
+                    })
+                    .catch((error) => {
+                        console.error('Service worker registration failed:', error);
+                    });
+            });
         },
 
         /**

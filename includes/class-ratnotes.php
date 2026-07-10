@@ -46,6 +46,7 @@ class Main {
         add_action( 'init', array( $this, 'register_post_type' ) );
         add_action( 'init', array( $this, 'register_taxonomy' ) );
         add_action( 'init', array( $this, 'add_rewrite_rules' ) );
+        add_action( 'template_redirect', array( $this, 'serve_service_worker' ), 0 );
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
         add_action( 'admin_init', array( $this, 'handle_menu_redirect' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
@@ -215,6 +216,41 @@ class Main {
     public function add_rewrite_rules() {
         add_rewrite_rule( '^ratnotes-archive/?$', 'index.php?ratnotes_archive=1', 'top' );
         add_rewrite_tag( '%ratnotes_archive%', '1' );
+    }
+
+    /**
+     * Serve the service worker JavaScript from a stable root URL.
+     */
+    public function serve_service_worker() {
+        if ( ! isset( $_GET['ratnotes_sw'] ) ) {
+            return;
+        }
+
+        $sw_file = RATNOTES_PLUGIN_DIR . 'frontend/sw.js';
+        if ( ! file_exists( $sw_file ) ) {
+            status_header( 404 );
+            exit;
+        }
+
+        $sw_content = file_get_contents( $sw_file );
+        if ( false === $sw_content ) {
+            status_header( 500 );
+            exit;
+        }
+
+        $sw_content = str_replace(
+            array( '__RATNOTES_CACHE_NAME__', '__RATNOTES_ARCHIVE_PATH__' ),
+            array( 'ratnotes-cache-v' . RATNOTES_VERSION, '/ratnotes-archive/' ),
+            $sw_content
+        );
+
+        header( 'Content-Type: application/javascript; charset=UTF-8' );
+        header( 'Cache-Control: no-cache, no-store, must-revalidate' );
+        header( 'Pragma: no-cache' );
+        header( 'Expires: 0' );
+        header( 'Service-Worker-Allowed: /ratnotes-archive/' );
+        echo $sw_content;
+        exit;
     }
 
     /**
