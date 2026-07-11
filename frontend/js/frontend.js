@@ -18,6 +18,7 @@
         currentStatus: 'active',
         currentCategory: 'all',
         isLoading: false,
+        isOffline: false,
         $container: null,
 
         /**
@@ -29,6 +30,8 @@
 
             this.currentStatus = this.$container.data('status') || 'active';
             this.registerServiceWorker();
+            this.bindConnectivityEvents();
+            this.ensureOfflineBanner();
             this.bindEvents();
             this.loadCategories();
             this.loadNotes();
@@ -51,6 +54,116 @@
                     });
             });
         },
+
+            /**
+             * Bind online/offline listeners so the UI can show stale/offline state.
+             */
+            bindConnectivityEvents: function() {
+                window.addEventListener('online', () => {
+                    this.isOffline = false;
+                    this.updateOfflineBanner();
+                    this.loadCategories();
+                    this.loadNotes();
+                });
+
+                window.addEventListener('offline', () => {
+                    this.isOffline = true;
+                    this.updateOfflineBanner();
+                });
+
+                this.isOffline = !navigator.onLine;
+                this.updateOfflineBanner();
+            },
+
+            /**
+             * Make sure an offline banner exists in the DOM.
+             */
+            ensureOfflineBanner: function() {
+                if (this.$container.find('.ratnotes-frontend-offline-banner').length) return;
+
+                this.$container.prepend(
+                    '<div class="ratnotes-frontend-offline-banner" style="display:none;">Offline mode - showing cached notes</div>'
+                );
+            },
+
+            /**
+             * Toggle the offline banner based on current connectivity.
+             */
+            updateOfflineBanner: function() {
+                const $banner = this.$container.find('.ratnotes-frontend-offline-banner');
+                if (!$banner.length) return;
+
+                if (this.isOffline) {
+                    $banner.text('Offline mode - showing cached notes').show();
+                } else {
+                    $banner.hide();
+                }
+            },
+
+            /**
+             * Build a local cache key for a specific notes query.
+             */
+            getNotesCacheKey: function() {
+                const searchValue = this.$container.find('.ratnotes-frontend-search-input').val() || '';
+                return [
+                    'ratnotes_notes',
+                    this.currentStatus,
+                    this.currentCategory === 'all' ? 'all' : this.currentCategory,
+                    searchValue.trim().toLowerCase()
+                ].join('::');
+            },
+
+            /**
+             * Persist data in localStorage if available.
+             */
+            cacheData: function(key, value) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                } catch (error) {
+                    console.warn('RatNotes cache write failed:', error);
+                }
+            },
+
+            /**
+             * Read cached data from localStorage if available.
+             */
+            readCache: function(key) {
+                try {
+                    const rawValue = localStorage.getItem(key);
+                    return rawValue ? JSON.parse(rawValue) : null;
+                } catch (error) {
+                    console.warn('RatNotes cache read failed:', error);
+                    return null;
+                }
+            },
+
+            /**
+             * Fallback rendering for cached notes/categories when offline.
+             */
+            renderCachedState: function() {
+                const cachedNotes = this.readCache(this.getNotesCacheKey());
+                if (Array.isArray(cachedNotes)) {
+                    this.notes = cachedNotes;
+                    this.renderNotes();
+                    this.isOffline = true;
+                    this.updateOfflineBanner();
+                    return true;
+                }
+
+                const cachedCategories = this.readCache('ratnotes_categories');
+                if (Array.isArray(cachedCategories)) {
+                    this.categories = cachedCategories;
+                    this.renderCategories();
+                    this.updateSelectedCategoryDisplay();
+                    this.renderModalCategoryDropdown();
+                    this.updateModalCategoryTriggerText();
+                    this.isOffline = true;
+                    this.updateOfflineBanner();
+                    return true;
+                }
+
+                return false;
+            },
 
         /**
          * Bind event listeners.
@@ -128,7 +241,13 @@
             this.isLoading = true;
             this.$container.find('.ratnotes-frontend-loading').show();
 
+            const cacheKey = this.getNotesCacheKey();
+
             try {
+                if (!navigator.onLine) {
+                    throw new Error('offline');
+                }
+
                 const response = await $.ajax({
                     url: ratnotesFrontendData.ajaxUrl,
                     type: 'POST',
@@ -143,13 +262,21 @@
 
                 if (response.success) {
                     this.notes = response.data;
+                    this.cacheData(cacheKey, this.notes);
+                    this.isOffline = false;
+                    this.updateOfflineBanner();
                     this.renderNotes();
                 } else {
                     this.showError(response.data?.message || 'Failed to load notes');
                 }
             } catch (error) {
                 console.error('Error loading notes:', error);
-                this.showError('Failed to load notes');
+                this.isOffline = true;
+                this.updateOfflineBanner();
+
+                if (!this.renderCachedState()) {
+                    this.showError('Failed to load notes');
+                }
             } finally {
                 this.isLoading = false;
                 this.$container.find('.ratnotes-frontend-loading').hide();
@@ -161,6 +288,10 @@
          */
         loadCategories: async function() {
             try {
+                if (!navigator.onLine) {
+                    throw new Error('offline');
+                }
+
                 const response = await $.ajax({
                     url: ratnotesFrontendData.ajaxUrl,
                     type: 'POST',
@@ -172,6 +303,9 @@
 
                 if (response.success) {
                     this.categories = response.data || [];
+                    this.cacheData('ratnotes_categories', this.categories);
+                    this.isOffline = false;
+                    this.updateOfflineBanner();
                     this.renderCategories();
                     this.updateSelectedCategoryDisplay();
                     this.renderModalCategoryDropdown();
@@ -179,6 +313,17 @@
                 }
             } catch (error) {
                 console.error('Error loading categories:', error);
+                this.isOffline = true;
+                this.updateOfflineBanner();
+
+                const cachedCategories = this.readCache('ratnotes_categories');
+                if (Array.isArray(cachedCategories)) {
+                    this.categories = cachedCategories;
+                    this.renderCategories();
+                    this.updateSelectedCategoryDisplay();
+                    this.renderModalCategoryDropdown();
+                    this.updateModalCategoryTriggerText();
+                }
             }
         },
 

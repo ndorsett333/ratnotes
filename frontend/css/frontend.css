@@ -148,6 +148,17 @@
 	color: #f38ba8;
 }
 
+.ratnotes-frontend-offline-banner {
+	margin-bottom: 12px;
+	padding: 10px 12px;
+	border: 1px solid rgba(137, 180, 250, 0.35);
+	border-radius: 8px;
+	background: rgba(137, 180, 250, 0.12);
+	color: #cdd6f4;
+	font-size: 13px;
+	font-weight: 500;
+}
+
 .ratnotes-frontend-category-item {
 	text-align: left;
 	border: none;
