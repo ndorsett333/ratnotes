@@ -277,11 +277,7 @@ class Main {
      */
     public function load_archive_template( $template ) {
         if ( get_query_var( 'ratnotes_archive' ) ) {
-            // Only allow administrators to access the archive page.
-            if ( ! current_user_can( 'manage_options' ) ) {
-                wp_redirect( home_url() );
-                exit;
-            }
+            // Render the archive template for all visitors; login form shown inside for non-logged-in users.
             $archive_template = RATNOTES_PLUGIN_DIR . 'templates/archive-page.php';
             if ( file_exists( $archive_template ) ) {
                 return $archive_template;

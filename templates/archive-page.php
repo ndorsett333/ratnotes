@@ -198,6 +198,73 @@ $site_url  = home_url();
 			background-color: #b4befe;
 		}
 
+		/* Inline WP login form */
+		.ratnotes-archive-notice #loginform {
+			margin: 16px 0 0;
+			text-align: left;
+		}
+
+		.ratnotes-archive-notice #loginform label {
+			color: #a6adc8;
+			font-size: 13px;
+			display: block;
+			margin-bottom: 4px;
+		}
+
+		.ratnotes-archive-notice #loginform input[type="text"],
+		.ratnotes-archive-notice #loginform input[type="password"] {
+			width: 100%;
+			padding: 10px 12px;
+			background: #1e1e2e;
+			border: 1px solid #45475a;
+			border-radius: 6px;
+			color: #cdd6f4;
+			font-size: 14px;
+			box-sizing: border-box;
+			margin-bottom: 14px;
+		}
+
+		.ratnotes-archive-notice #loginform input[type="text"]:focus,
+		.ratnotes-archive-notice #loginform input[type="password"]:focus {
+			outline: none;
+			border-color: #89b4fa;
+		}
+
+		.ratnotes-archive-notice #loginform .login-remember label {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 13px;
+			color: #a6adc8;
+		}
+
+		.ratnotes-archive-notice #loginform input[type="submit"] {
+			width: 100%;
+			margin-top: 12px;
+			padding: 10px;
+			background: #89b4fa;
+			color: #1e1e2e;
+			border: none;
+			border-radius: 6px;
+			font-size: 15px;
+			font-weight: 600;
+			cursor: pointer;
+		}
+
+		.ratnotes-archive-notice #loginform input[type="submit"]:hover {
+			background: #b4befe;
+		}
+
+		.ratnotes-archive-notice #login_error {
+			background: rgba(243, 139, 168, 0.12);
+			border: 1px solid rgba(243, 139, 168, 0.4);
+			border-radius: 6px;
+			color: #f38ba8;
+			padding: 10px 12px;
+			font-size: 13px;
+			margin-bottom: 12px;
+		}
+
 		/* Footer */
 		.ratnotes-archive-footer {
 			background-color: #1e1e2e;
@@ -286,11 +353,17 @@ $site_url  = home_url();
 
 			<?php if ( ! $is_logged_in ) : ?>
 				<div class="ratnotes-archive-notice">
-					<h3><?php esc_html_e( 'Please log in to view your notes', 'ratnotes' ); ?></h3>
-					<p><?php esc_html_e( 'You need to be logged in to access your personal notes archive.', 'ratnotes' ); ?></p>
-					<a href="<?php echo esc_url( wp_login_url( $site_url ) ); ?>" class="button">
-						<?php esc_html_e( 'Log In', 'ratnotes' ); ?>
-					</a>
+					<h3><?php esc_html_e( 'Log in to view your notes', 'ratnotes' ); ?></h3>
+					<?php
+					wp_login_form( array(
+						'redirect'       => home_url( '/ratnotes-archive/' ),
+						'label_username' => __( 'Username or Email', 'ratnotes' ),
+						'label_password' => __( 'Password', 'ratnotes' ),
+						'label_remember' => __( 'Remember me', 'ratnotes' ),
+						'label_log_in'   => __( 'Log In', 'ratnotes' ),
+						'remember'       => true,
+					) );
+					?>
 				</div>
 			<?php else : ?>
 				<!-- Notes Grid Container -->
