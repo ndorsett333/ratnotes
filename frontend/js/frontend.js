@@ -19,6 +19,9 @@
         currentCategory: 'all',
         isLoading: false,
         isOffline: false,
+        pendingOperationsCount: 0,
+        isSyncingQueue: false,
+        db: null,
         $container: null,
 
         /**
@@ -30,6 +33,7 @@
 
             this.currentStatus = this.$container.data('status') || 'active';
             this.registerServiceWorker();
+            this.initIndexedDB();
             this.bindConnectivityEvents();
             this.ensureOfflineBanner();
             this.bindEvents();
@@ -62,8 +66,10 @@
                 window.addEventListener('online', () => {
                     this.isOffline = false;
                     this.updateOfflineBanner();
-                    this.loadCategories();
-                    this.loadNotes();
+                    this.processQueuedOperations().finally(() => {
+                        this.loadCategories();
+                        this.loadNotes();
+                    });
                 });
 
                 window.addEventListener('offline', () => {
@@ -73,6 +79,40 @@
 
                 this.isOffline = !navigator.onLine;
                 this.updateOfflineBanner();
+            },
+
+            /**
+             * Initialize IndexedDB for offline cache and operation queue.
+             */
+            initIndexedDB: function() {
+                if (!('indexedDB' in window)) {
+                    return;
+                }
+
+                const request = indexedDB.open('ratnotes_pwa', 1);
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('notes')) {
+                        db.createObjectStore('notes', { keyPath: 'cacheKey' });
+                    }
+                    if (!db.objectStoreNames.contains('categories')) {
+                        db.createObjectStore('categories', { keyPath: 'cacheKey' });
+                    }
+                    if (!db.objectStoreNames.contains('operations')) {
+                        db.createObjectStore('operations', { keyPath: 'opId' });
+                    }
+                };
+
+                request.onsuccess = () => {
+                    this.db = request.result;
+                    this.refreshPendingOperationsCount();
+                    this.processQueuedOperations();
+                };
+
+                request.onerror = () => {
+                    console.warn('IndexedDB unavailable for RatNotes offline mode.');
+                };
             },
 
             /**
@@ -93,8 +133,12 @@
                 const $banner = this.$container.find('.ratnotes-frontend-offline-banner');
                 if (!$banner.length) return;
 
-                if (this.isOffline) {
-                    $banner.text('Offline mode - showing cached notes').show();
+                if (this.isOffline || this.pendingOperationsCount > 0) {
+                    const pendingText = this.pendingOperationsCount > 0
+                        ? ` (${this.pendingOperationsCount} change${this.pendingOperationsCount === 1 ? '' : 's'} pending sync)`
+                        : '';
+                    const modeText = this.isOffline ? 'Offline mode' : 'Back online';
+                    $banner.text(`${modeText} - showing cached notes${pendingText}`).show();
                 } else {
                     $banner.hide();
                 }
@@ -164,6 +208,291 @@
 
                 return false;
             },
+
+        /**
+         * Promise wrapper for IndexedDB requests.
+         */
+        idbRequest: function(request) {
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        },
+
+        /**
+         * Read notes cache from IndexedDB.
+         */
+        readNotesFromIndexedDB: async function(cacheKey) {
+            if (!this.db) return null;
+            try {
+                const tx = this.db.transaction('notes', 'readonly');
+                const store = tx.objectStore('notes');
+                const record = await this.idbRequest(store.get(cacheKey));
+                return record?.items || null;
+            } catch (error) {
+                console.warn('Failed to read notes cache from IndexedDB:', error);
+                return null;
+            }
+        },
+
+        /**
+         * Write notes cache to IndexedDB.
+         */
+        writeNotesToIndexedDB: async function(cacheKey, items) {
+            if (!this.db) return;
+            try {
+                const tx = this.db.transaction('notes', 'readwrite');
+                const store = tx.objectStore('notes');
+                await this.idbRequest(store.put({ cacheKey, items, updatedAt: Date.now() }));
+            } catch (error) {
+                console.warn('Failed to write notes cache to IndexedDB:', error);
+            }
+        },
+
+        /**
+         * Read categories cache from IndexedDB.
+         */
+        readCategoriesFromIndexedDB: async function() {
+            if (!this.db) return null;
+            try {
+                const tx = this.db.transaction('categories', 'readonly');
+                const store = tx.objectStore('categories');
+                const record = await this.idbRequest(store.get('all'));
+                return record?.items || null;
+            } catch (error) {
+                console.warn('Failed to read category cache from IndexedDB:', error);
+                return null;
+            }
+        },
+
+        /**
+         * Write categories cache to IndexedDB.
+         */
+        writeCategoriesToIndexedDB: async function(items) {
+            if (!this.db) return;
+            try {
+                const tx = this.db.transaction('categories', 'readwrite');
+                const store = tx.objectStore('categories');
+                await this.idbRequest(store.put({ cacheKey: 'all', items, updatedAt: Date.now() }));
+            } catch (error) {
+                console.warn('Failed to write category cache to IndexedDB:', error);
+            }
+        },
+
+        /**
+         * Read queued operations from IndexedDB.
+         */
+        getQueuedOperations: async function() {
+            if (!this.db) return [];
+            try {
+                const tx = this.db.transaction('operations', 'readonly');
+                const store = tx.objectStore('operations');
+                const operations = await this.idbRequest(store.getAll());
+                return (operations || []).sort((a, b) => (a.queuedAt || 0) - (b.queuedAt || 0));
+            } catch (error) {
+                console.warn('Failed to read queued operations:', error);
+                return [];
+            }
+        },
+
+        /**
+         * Add or replace a queued operation.
+         */
+        putQueuedOperation: async function(operation) {
+            if (!this.db) return;
+            try {
+                const tx = this.db.transaction('operations', 'readwrite');
+                const store = tx.objectStore('operations');
+                await this.idbRequest(store.put(operation));
+            } catch (error) {
+                console.warn('Failed to queue operation:', error);
+            }
+        },
+
+        /**
+         * Remove one queued operation.
+         */
+        removeQueuedOperation: async function(opId) {
+            if (!this.db) return;
+            try {
+                const tx = this.db.transaction('operations', 'readwrite');
+                const store = tx.objectStore('operations');
+                await this.idbRequest(store.delete(opId));
+            } catch (error) {
+                console.warn('Failed to remove queued operation:', error);
+            }
+        },
+
+        /**
+         * Remove queued operations for a specific note key.
+         */
+        removeQueuedOperationsByNoteKey: async function(noteKey) {
+            if (!this.db || !noteKey) return;
+            const operations = await this.getQueuedOperations();
+            const matching = operations.filter((op) => String(op.noteKey) === String(noteKey));
+            for (const op of matching) {
+                await this.removeQueuedOperation(op.opId);
+            }
+        },
+
+        /**
+         * Replace temp note keys in remaining queue after create succeeds.
+         */
+        replaceQueuedNoteKey: async function(fromKey, toKey) {
+            if (!this.db) return;
+            const operations = await this.getQueuedOperations();
+            for (const op of operations) {
+                if (String(op.noteKey) !== String(fromKey)) continue;
+                op.noteKey = toKey;
+                if (op.data && (op.data.id === 0 || String(op.data.id) === String(fromKey))) {
+                    op.data.id = toKey;
+                }
+                await this.putQueuedOperation(op);
+            }
+        },
+
+        /**
+         * Refresh queued operation count and banner text.
+         */
+        refreshPendingOperationsCount: async function() {
+            const operations = await this.getQueuedOperations();
+            this.pendingOperationsCount = operations.length;
+            this.updateOfflineBanner();
+        },
+
+        /**
+         * Queue an operation with last-write-wins behavior per note.
+         */
+        enqueueOperation: async function(operation) {
+            const op = {
+                opId: operation.opId || `op-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                queuedAt: Date.now(),
+                ...operation
+            };
+
+            if (op.noteKey) {
+                await this.removeQueuedOperationsByNoteKey(op.noteKey);
+            }
+
+            const isUnsyncedLocalDelete = op.type === 'delete' && String(op.noteKey).startsWith('local-');
+            if (!isUnsyncedLocalDelete) {
+                await this.putQueuedOperation(op);
+            }
+
+            await this.refreshPendingOperationsCount();
+        },
+
+        /**
+         * Build category display payload from selected category IDs.
+         */
+        buildCategoryDataFromIds: function(categoryIds) {
+            return (categoryIds || []).map((id) => {
+                const match = this.categories.find((category) => String(category.id) === String(id));
+                return {
+                    id: Number(id),
+                    name: match ? match.name : `Category ${id}`
+                };
+            });
+        },
+
+        /**
+         * Upsert a note locally in memory and caches.
+         */
+        upsertLocalNote: async function(note) {
+            const index = this.notes.findIndex((item) => String(item.id) === String(note.id));
+            if (index >= 0) {
+                this.notes[index] = { ...this.notes[index], ...note };
+            } else {
+                this.notes.unshift(note);
+            }
+
+            this.renderNotes();
+            const cacheKey = this.getNotesCacheKey();
+            this.cacheData(cacheKey, this.notes);
+            await this.writeNotesToIndexedDB(cacheKey, this.notes);
+        },
+
+        /**
+         * Remove a note locally in memory and caches.
+         */
+        removeLocalNote: async function(noteId) {
+            this.notes = this.notes.filter((item) => String(item.id) !== String(noteId));
+            this.renderNotes();
+            const cacheKey = this.getNotesCacheKey();
+            this.cacheData(cacheKey, this.notes);
+            await this.writeNotesToIndexedDB(cacheKey, this.notes);
+        },
+
+        /**
+         * Process queued operations once back online.
+         */
+        processQueuedOperations: async function() {
+            if (!navigator.onLine || this.isSyncingQueue) return;
+            if (!this.db) return;
+
+            this.isSyncingQueue = true;
+            const operations = await this.getQueuedOperations();
+
+            for (const operation of operations) {
+                try {
+                    if (operation.type === 'save') {
+                        const response = await $.ajax({
+                            url: ratnotesFrontendData.ajaxUrl,
+                            type: 'POST',
+                            data: operation.data
+                        });
+
+                        if (!response.success) {
+                            throw new Error(response.data?.message || 'Save replay failed');
+                        }
+
+                        const saved = response.data;
+                        if (String(operation.noteKey).startsWith('local-')) {
+                            await this.removeLocalNote(operation.noteKey);
+                            await this.replaceQueuedNoteKey(operation.noteKey, saved.id);
+                        }
+
+                        await this.upsertLocalNote(saved);
+                        await this.removeQueuedOperation(operation.opId);
+                    }
+
+                    if (operation.type === 'delete') {
+                        const response = await $.ajax({
+                            url: ratnotesFrontendData.ajaxUrl,
+                            type: 'POST',
+                            data: operation.data
+                        });
+
+                        if (!response.success) {
+                            throw new Error(response.data?.message || 'Delete replay failed');
+                        }
+
+                        await this.removeLocalNote(operation.noteKey || operation.data.id);
+                        await this.removeQueuedOperation(operation.opId);
+                    }
+
+                    if (operation.type === 'restore') {
+                        const response = await $.ajax({
+                            url: ratnotesFrontendData.ajaxUrl,
+                            type: 'POST',
+                            data: operation.data
+                        });
+
+                        if (!response.success) {
+                            throw new Error(response.data?.message || 'Restore replay failed');
+                        }
+
+                        await this.removeQueuedOperation(operation.opId);
+                    }
+                } catch (error) {
+                    console.error('Queued operation replay failed:', error);
+                    break;
+                }
+            }
+
+            this.isSyncingQueue = false;
+            await this.refreshPendingOperationsCount();
+        },
 
         /**
          * Bind event listeners.
@@ -263,6 +592,7 @@
                 if (response.success) {
                     this.notes = response.data;
                     this.cacheData(cacheKey, this.notes);
+                    await this.writeNotesToIndexedDB(cacheKey, this.notes);
                     this.isOffline = false;
                     this.updateOfflineBanner();
                     this.renderNotes();
@@ -273,6 +603,13 @@
                 console.error('Error loading notes:', error);
                 this.isOffline = true;
                 this.updateOfflineBanner();
+
+                const idbNotes = await this.readNotesFromIndexedDB(cacheKey);
+                if (Array.isArray(idbNotes)) {
+                    this.notes = idbNotes;
+                    this.renderNotes();
+                    return;
+                }
 
                 if (!this.renderCachedState()) {
                     this.showError('Failed to load notes');
@@ -304,6 +641,7 @@
                 if (response.success) {
                     this.categories = response.data || [];
                     this.cacheData('ratnotes_categories', this.categories);
+                    await this.writeCategoriesToIndexedDB(this.categories);
                     this.isOffline = false;
                     this.updateOfflineBanner();
                     this.renderCategories();
@@ -315,6 +653,16 @@
                 console.error('Error loading categories:', error);
                 this.isOffline = true;
                 this.updateOfflineBanner();
+
+                const idbCategories = await this.readCategoriesFromIndexedDB();
+                if (Array.isArray(idbCategories)) {
+                    this.categories = idbCategories;
+                    this.renderCategories();
+                    this.updateSelectedCategoryDisplay();
+                    this.renderModalCategoryDropdown();
+                    this.updateModalCategoryTriggerText();
+                    return;
+                }
 
                 const cachedCategories = this.readCache('ratnotes_categories');
                 if (Array.isArray(cachedCategories)) {
@@ -592,7 +940,49 @@
                 return;
             }
 
+            const isExisting = !!this.currentNote;
+            const localId = isExisting
+                ? this.currentNote.id
+                : `local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+            const draft = {
+                id: localId,
+                title,
+                content,
+                is_pinned: isExisting ? !!this.currentNote.is_pinned : false,
+                is_archived: isExisting ? !!this.currentNote.is_archived : false,
+                is_trashed: false,
+                categories: this.buildCategoryDataFromIds(this.selectedModalCategoryIds),
+                labels: isExisting ? (this.currentNote.labels || []) : [],
+                created_at: isExisting ? this.currentNote.created_at : new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                pending_sync: !navigator.onLine
+            };
+
             try {
+                if (!navigator.onLine) {
+                    await this.upsertLocalNote(draft);
+
+                    await this.enqueueOperation({
+                        type: 'save',
+                        noteKey: localId,
+                        data: {
+                            action: 'ratnotes_save_note',
+                            nonce: ratnotesFrontendData.nonce,
+                            id: isExisting ? this.currentNote.id : 0,
+                            title,
+                            content,
+                            is_pinned: draft.is_pinned,
+                            is_archived: draft.is_archived,
+                            category_ids: this.selectedModalCategoryIds,
+                            category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
+                        }
+                    });
+
+                    this.closeModal();
+                    return;
+                }
+
                 const response = await $.ajax({
                     url: ratnotesFrontendData.ajaxUrl,
                     type: 'POST',
@@ -611,13 +1001,31 @@
 
                 if (response.success) {
                     this.closeModal();
+                    await this.upsertLocalNote(response.data);
                     this.loadNotes();
                 } else {
                     this.showError(response.data?.message || 'Failed to save note');
                 }
             } catch (error) {
                 console.error('Error saving note:', error);
-                this.showError('Failed to save note');
+
+                await this.upsertLocalNote(draft);
+                await this.enqueueOperation({
+                    type: 'save',
+                    noteKey: localId,
+                    data: {
+                        action: 'ratnotes_save_note',
+                        nonce: ratnotesFrontendData.nonce,
+                        id: isExisting ? this.currentNote.id : 0,
+                        title,
+                        content,
+                        is_pinned: draft.is_pinned,
+                        is_archived: draft.is_archived,
+                        category_ids: this.selectedModalCategoryIds,
+                        category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
+                    }
+                });
+                this.closeModal();
             }
         },
 
@@ -630,6 +1038,22 @@
             if (!confirm(ratnotesFrontendData.strings.confirmDelete)) return;
 
             if (this.currentStatus === 'trash' && !confirm(ratnotesFrontendData.strings.confirmDeleteForever)) {
+                return;
+            }
+
+            if (!navigator.onLine) {
+                await this.removeLocalNote(this.currentNote.id);
+                await this.enqueueOperation({
+                    type: 'delete',
+                    noteKey: this.currentNote.id,
+                    data: {
+                        action: 'ratnotes_delete_note',
+                        nonce: ratnotesFrontendData.nonce,
+                        id: this.currentNote.id,
+                        force: this.currentStatus === 'trash'
+                    }
+                });
+                this.closeModal();
                 return;
             }
 
@@ -647,13 +1071,25 @@
 
                 if (response.success) {
                     this.closeModal();
+                    await this.removeLocalNote(this.currentNote.id);
                     this.loadNotes();
                 } else {
                     this.showError(response.data?.message || 'Failed to delete note');
                 }
             } catch (error) {
                 console.error('Error deleting note:', error);
-                this.showError('Failed to delete note');
+                await this.removeLocalNote(this.currentNote.id);
+                await this.enqueueOperation({
+                    type: 'delete',
+                    noteKey: this.currentNote.id,
+                    data: {
+                        action: 'ratnotes_delete_note',
+                        nonce: ratnotesFrontendData.nonce,
+                        id: this.currentNote.id,
+                        force: this.currentStatus === 'trash'
+                    }
+                });
+                this.closeModal();
             }
         },
 
@@ -667,6 +1103,20 @@
             const noteId = $(e.currentTarget).data('id');
             if (!noteId) return;
 
+            if (!navigator.onLine) {
+                await this.removeLocalNote(noteId);
+                await this.enqueueOperation({
+                    type: 'restore',
+                    noteKey: noteId,
+                    data: {
+                        action: 'ratnotes_restore_note',
+                        nonce: ratnotesFrontendData.nonce,
+                        id: noteId
+                    }
+                });
+                return;
+            }
+
             try {
                 const response = await $.ajax({
                     url: ratnotesFrontendData.ajaxUrl,
@@ -679,13 +1129,23 @@
                 });
 
                 if (response.success) {
+                    await this.removeLocalNote(noteId);
                     this.loadNotes();
                 } else {
                     this.showError(response.data?.message || 'Failed to restore note');
                 }
             } catch (error) {
                 console.error('Error restoring note:', error);
-                this.showError('Failed to restore note');
+                await this.removeLocalNote(noteId);
+                await this.enqueueOperation({
+                    type: 'restore',
+                    noteKey: noteId,
+                    data: {
+                        action: 'ratnotes_restore_note',
+                        nonce: ratnotesFrontendData.nonce,
+                        id: noteId
+                    }
+                });
             }
         },
 
@@ -697,6 +1157,36 @@
 
             try {
                 const isArchived = this.currentNote.is_archived || false;
+
+                if (!navigator.onLine) {
+                    await this.upsertLocalNote({
+                        ...this.currentNote,
+                        is_archived: !isArchived,
+                        is_pinned: !isArchived ? false : this.currentNote.is_pinned,
+                        categories: this.buildCategoryDataFromIds(this.selectedModalCategoryIds),
+                        updated_at: new Date().toISOString(),
+                        pending_sync: true
+                    });
+
+                    await this.enqueueOperation({
+                        type: 'save',
+                        noteKey: this.currentNote.id,
+                        data: {
+                            action: 'ratnotes_save_note',
+                            nonce: ratnotesFrontendData.nonce,
+                            id: this.currentNote.id,
+                            title: this.currentNote.title,
+                            content: this.currentNote.content,
+                            is_pinned: this.currentNote.is_pinned,
+                            is_archived: !isArchived,
+                            category_ids: this.selectedModalCategoryIds,
+                            category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
+                        }
+                    });
+
+                    this.closeModal();
+                    return;
+                }
 
                 const response = await $.ajax({
                     url: ratnotesFrontendData.ajaxUrl,
@@ -716,13 +1206,29 @@
 
                 if (response.success) {
                     this.closeModal();
+                    await this.upsertLocalNote(response.data);
                     this.loadNotes();
                 } else {
                     this.showError(response.data?.message || 'Failed to archive note');
                 }
             } catch (error) {
                 console.error('Error archiving note:', error);
-                this.showError('Failed to archive note');
+                await this.enqueueOperation({
+                    type: 'save',
+                    noteKey: this.currentNote.id,
+                    data: {
+                        action: 'ratnotes_save_note',
+                        nonce: ratnotesFrontendData.nonce,
+                        id: this.currentNote.id,
+                        title: this.currentNote.title,
+                        content: this.currentNote.content,
+                        is_pinned: this.currentNote.is_pinned,
+                        is_archived: !(this.currentNote.is_archived || false),
+                        category_ids: this.selectedModalCategoryIds,
+                        category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
+                    }
+                });
+                this.closeModal();
             }
         },
 
@@ -731,6 +1237,37 @@
          */
         togglePin: async function() {
             if (!this.currentNote) return;
+
+            const nextPinned = !this.currentNote.is_pinned;
+
+            if (!navigator.onLine) {
+                await this.upsertLocalNote({
+                    ...this.currentNote,
+                    is_pinned: nextPinned,
+                    categories: this.buildCategoryDataFromIds(this.selectedModalCategoryIds),
+                    updated_at: new Date().toISOString(),
+                    pending_sync: true
+                });
+
+                await this.enqueueOperation({
+                    type: 'save',
+                    noteKey: this.currentNote.id,
+                    data: {
+                        action: 'ratnotes_save_note',
+                        nonce: ratnotesFrontendData.nonce,
+                        id: this.currentNote.id,
+                        title: this.currentNote.title,
+                        content: this.currentNote.content,
+                        is_pinned: nextPinned,
+                        is_archived: this.currentNote.is_archived,
+                        category_ids: this.selectedModalCategoryIds,
+                        category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
+                    }
+                });
+
+                this.closeModal();
+                return;
+            }
 
             try {
                 const response = await $.ajax({
@@ -752,13 +1289,29 @@
                 if (response.success) {
                     this.currentNote.is_pinned = !this.currentNote.is_pinned;
                     this.closeModal();
+                    await this.upsertLocalNote(response.data);
                     this.loadNotes();
                 } else {
                     this.showError(response.data?.message || 'Failed to update pin status');
                 }
             } catch (error) {
                 console.error('Error toggling pin:', error);
-                this.showError('Failed to update pin status');
+                await this.enqueueOperation({
+                    type: 'save',
+                    noteKey: this.currentNote.id,
+                    data: {
+                        action: 'ratnotes_save_note',
+                        nonce: ratnotesFrontendData.nonce,
+                        id: this.currentNote.id,
+                        title: this.currentNote.title,
+                        content: this.currentNote.content,
+                        is_pinned: nextPinned,
+                        is_archived: this.currentNote.is_archived,
+                        category_ids: this.selectedModalCategoryIds,
+                        category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
+                    }
+                });
+                this.closeModal();
             }
         },
 

@@ -3,8 +3,16 @@ const ARCHIVE_PATH = '__RATNOTES_ARCHIVE_PATH__';
 const PLUGIN_BASE_PATH = '__RATNOTES_PLUGIN_BASE_PATH__';
 const OFFLINE_HTML = '__RATNOTES_OFFLINE_HTML__';
 
+const ARCHIVE_PATH_NO_TRAILING = ARCHIVE_PATH.endsWith('/')
+  ? ARCHIVE_PATH.slice(0, -1)
+  : ARCHIVE_PATH;
+const ARCHIVE_PATH_WITH_TRAILING = ARCHIVE_PATH.endsWith('/')
+  ? ARCHIVE_PATH
+  : `${ARCHIVE_PATH}/`;
+
 const APP_SHELL_URLS = [
-  ARCHIVE_PATH,
+  ARCHIVE_PATH_NO_TRAILING,
+  ARCHIVE_PATH_WITH_TRAILING,
   `${PLUGIN_BASE_PATH}frontend/css/frontend.css`,
   `${PLUGIN_BASE_PATH}frontend/js/frontend.js`,
   `${PLUGIN_BASE_PATH}frontend/manifest.json`,
@@ -12,15 +20,29 @@ const APP_SHELL_URLS = [
   `${PLUGIN_BASE_PATH}frontend/icons/ratnotes167.png`,
   `${PLUGIN_BASE_PATH}frontend/icons/ratnotes180.png`,
   '/wp-includes/css/dashicons.min.css',
+  '/wp-includes/fonts/dashicons.woff2',
   '/wp-includes/fonts/dashicons.woff',
   '/wp-includes/fonts/dashicons.ttf'
 ];
+
+async function precacheShell(cache) {
+  await Promise.all(
+    APP_SHELL_URLS.map(async (url) => {
+      try {
+        await cache.add(url);
+      } catch (error) {
+        // Optional asset failures should not block service worker installation.
+        console.warn('[RatNotes SW] Failed to precache:', url, error);
+      }
+    })
+  );
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL_URLS))
+      .then((cache) => precacheShell(cache))
       .then(() => self.skipWaiting())
   );
 });
@@ -63,15 +85,21 @@ self.addEventListener('fetch', (event) => {
               return cached;
             }
 
-            return caches.match(ARCHIVE_PATH).then((archiveCached) => {
+            return caches.match(ARCHIVE_PATH_WITH_TRAILING).then((archiveCached) => {
               if (archiveCached) {
                 return archiveCached;
               }
 
-              return new Response(OFFLINE_HTML, {
-                headers: {
-                  'Content-Type': 'text/html; charset=UTF-8'
+              return caches.match(ARCHIVE_PATH_NO_TRAILING).then((archiveCachedNoSlash) => {
+                if (archiveCachedNoSlash) {
+                  return archiveCachedNoSlash;
                 }
+
+                return new Response(OFFLINE_HTML, {
+                  headers: {
+                    'Content-Type': 'text/html; charset=UTF-8'
+                  }
+                });
               });
             });
           })
