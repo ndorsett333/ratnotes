@@ -238,9 +238,25 @@ class Main {
             exit;
         }
 
+        $plugin_base_path = parse_url( RATNOTES_PLUGIN_URL, PHP_URL_PATH );
+        if ( empty( $plugin_base_path ) ) {
+            $plugin_base_path = '/wp-content/plugins/ratnotes/';
+        }
+
+        if ( '/' !== substr( $plugin_base_path, -1 ) ) {
+            $plugin_base_path .= '/';
+        }
+
+        $offline_html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RatNotes Offline</title><style>body{margin:0;padding:24px;background:#12121f;color:#cdd6f4;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}.card{max-width:520px;margin:10vh auto;background:#1e1e2e;border:1px solid #45475a;border-radius:10px;padding:20px}h1{margin:0 0 8px;font-size:22px}p{margin:0;color:#a6adc8;line-height:1.5}</style></head><body><div class="card"><h1>Offline</h1><p>RatNotes cannot reach the network right now. Reconnect to load fresh notes.</p></div></body></html>';
+
         $sw_content = str_replace(
-            array( '__RATNOTES_CACHE_NAME__', '__RATNOTES_ARCHIVE_PATH__' ),
-            array( 'ratnotes-cache-v' . RATNOTES_VERSION, '/ratnotes-archive/' ),
+            array( '__RATNOTES_CACHE_NAME__', '__RATNOTES_ARCHIVE_PATH__', '__RATNOTES_PLUGIN_BASE_PATH__', '__RATNOTES_OFFLINE_HTML__' ),
+            array(
+                'ratnotes-cache-v' . RATNOTES_VERSION,
+                '/ratnotes-archive/',
+                $plugin_base_path,
+                wp_json_encode( $offline_html )
+            ),
             $sw_content
         );
 

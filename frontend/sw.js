@@ -1,14 +1,19 @@
 const CACHE_NAME = '__RATNOTES_CACHE_NAME__';
 const ARCHIVE_PATH = '__RATNOTES_ARCHIVE_PATH__';
+const PLUGIN_BASE_PATH = '__RATNOTES_PLUGIN_BASE_PATH__';
+const OFFLINE_HTML = '__RATNOTES_OFFLINE_HTML__';
 
 const APP_SHELL_URLS = [
   ARCHIVE_PATH,
-  '/wp-content/plugins/ratnotes/frontend/css/frontend.css',
-  '/wp-content/plugins/ratnotes/frontend/js/frontend.js',
-  '/wp-content/plugins/ratnotes/frontend/manifest.json',
-  '/wp-content/plugins/ratnotes/frontend/icons/ratnotes.png',
-  '/wp-content/plugins/ratnotes/frontend/icons/ratnotes167.png',
-  '/wp-content/plugins/ratnotes/frontend/icons/ratnotes180.png'
+  `${PLUGIN_BASE_PATH}frontend/css/frontend.css`,
+  `${PLUGIN_BASE_PATH}frontend/js/frontend.js`,
+  `${PLUGIN_BASE_PATH}frontend/manifest.json`,
+  `${PLUGIN_BASE_PATH}frontend/icons/ratnotes.png`,
+  `${PLUGIN_BASE_PATH}frontend/icons/ratnotes167.png`,
+  `${PLUGIN_BASE_PATH}frontend/icons/ratnotes180.png`,
+  '/wp-includes/css/dashicons.min.css',
+  '/wp-includes/fonts/dashicons.woff',
+  '/wp-includes/fonts/dashicons.ttf'
 ];
 
 self.addEventListener('install', (event) => {
@@ -52,7 +57,25 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           return response;
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match(ARCHIVE_PATH)))
+        .catch(() =>
+          caches.match(request).then((cached) => {
+            if (cached) {
+              return cached;
+            }
+
+            return caches.match(ARCHIVE_PATH).then((archiveCached) => {
+              if (archiveCached) {
+                return archiveCached;
+              }
+
+              return new Response(OFFLINE_HTML, {
+                headers: {
+                  'Content-Type': 'text/html; charset=UTF-8'
+                }
+              });
+            });
+          })
+        )
     );
     return;
   }
