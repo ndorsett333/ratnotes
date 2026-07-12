@@ -29,6 +29,8 @@ class Shortcode {
 		add_action( 'wp_ajax_ratnotes_restore_note', array( __CLASS__, 'ajax_restore_note' ) );
 		add_action( 'wp_ajax_nopriv_ratnotes_restore_note', array( __CLASS__, 'ajax_restore_note' ) );
 		add_action( 'wp_ajax_ratnotes_create_category', array( __CLASS__, 'ajax_create_category' ) );
+		add_action( 'wp_ajax_ratnotes_refresh_nonce', array( __CLASS__, 'ajax_refresh_nonce' ) );
+		add_action( 'wp_ajax_nopriv_ratnotes_refresh_nonce', array( __CLASS__, 'ajax_refresh_nonce' ) );
 	}
 
 	/**
@@ -441,6 +443,26 @@ class Shortcode {
 				'slug'  => $term->slug,
 				'count' => 0,
 			) );
+		}
+
+		/**
+		 * AJAX: Refresh frontend nonce.
+		 */
+		public static function ajax_refresh_nonce() {
+			if ( ! is_user_logged_in() ) {
+				wp_send_json_error(
+					array(
+						'message' => __( 'Your session has expired. Please log in again.', 'ratnotes' ),
+					),
+					401
+				);
+			}
+
+			wp_send_json_success(
+				array(
+					'nonce' => wp_create_nonce( 'ratnotes_frontend' ),
+				)
+			);
 		}
 
 		/**

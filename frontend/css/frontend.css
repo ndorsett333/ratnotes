@@ -159,6 +159,24 @@
 	font-weight: 500;
 }
 
+.ratnotes-frontend-offline-banner.notice-info {
+	border-color: rgba(137, 180, 250, 0.35);
+	background: rgba(137, 180, 250, 0.12);
+	color: #cdd6f4;
+}
+
+.ratnotes-frontend-offline-banner.notice-success {
+	border-color: rgba(166, 227, 161, 0.45);
+	background: rgba(166, 227, 161, 0.14);
+	color: #a6e3a1;
+}
+
+.ratnotes-frontend-offline-banner.notice-error {
+	border-color: rgba(243, 139, 168, 0.45);
+	background: rgba(243, 139, 168, 0.14);
+	color: #f38ba8;
+}
+
 .ratnotes-frontend-category-item {
 	text-align: left;
 	border: none;

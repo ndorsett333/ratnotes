@@ -21,7 +21,12 @@
         isOffline: false,
         pendingOperationsCount: 0,
         isSyncingQueue: false,
+        sessionExpired: false,
+        syncNotice: '',
+        syncNoticeType: 'info',
+        syncNoticeTimeoutId: null,
         db: null,
+        dbReadyPromise: null,
         $container: null,
 
         /**
@@ -33,7 +38,7 @@
 
             this.currentStatus = this.$container.data('status') || 'active';
             this.registerServiceWorker();
-            this.initIndexedDB();
+            this.dbReadyPromise = this.initIndexedDB();
             this.bindConnectivityEvents();
             this.ensureOfflineBanner();
             this.bindEvents();
@@ -85,7 +90,9 @@
              * Initialize IndexedDB for offline cache and operation queue.
              */
             initIndexedDB: function() {
+                return new Promise((resolve) => {
                 if (!('indexedDB' in window)) {
+                    resolve(false);
                     return;
                 }
 
@@ -108,11 +115,14 @@
                     this.db = request.result;
                     this.refreshPendingOperationsCount();
                     this.processQueuedOperations();
+                    resolve(true);
                 };
 
                 request.onerror = () => {
                     console.warn('IndexedDB unavailable for RatNotes offline mode.');
+                    resolve(false);
                 };
+                });
             },
 
             /**
@@ -133,15 +143,215 @@
                 const $banner = this.$container.find('.ratnotes-frontend-offline-banner');
                 if (!$banner.length) return;
 
-                if (this.isOffline || this.pendingOperationsCount > 0) {
+                if (this.sessionExpired) {
+                    const pendingText = this.pendingOperationsCount > 0
+                        ? ` (${this.pendingOperationsCount} queued change${this.pendingOperationsCount === 1 ? '' : 's'})`
+                        : '';
+                    $banner
+                        .removeClass('notice-info notice-success')
+                        .addClass('notice-error')
+                        .text(`Session expired - refresh and log in again${pendingText}`)
+                        .show();
+                    return;
+                }
+
+                if (this.syncNotice) {
+                    $banner
+                        .removeClass('notice-info notice-success notice-error')
+                        .addClass(`notice-${this.syncNoticeType}`)
+                        .text(this.syncNotice)
+                        .show();
+                    return;
+                }
+
+                if (this.isOffline || this.pendingOperationsCount > 0 || this.isSyncingQueue) {
                     const pendingText = this.pendingOperationsCount > 0
                         ? ` (${this.pendingOperationsCount} change${this.pendingOperationsCount === 1 ? '' : 's'} pending sync)`
                         : '';
-                    const modeText = this.isOffline ? 'Offline mode' : 'Back online';
-                    $banner.text(`${modeText} - showing cached notes${pendingText}`).show();
+                    const modeText = this.isOffline ? 'Offline mode' : (this.isSyncingQueue ? 'Syncing changes' : 'Back online');
+                    $banner
+                        .removeClass('notice-success notice-error')
+                        .addClass('notice-info')
+                        .text(`${modeText} - showing cached notes${pendingText}`)
+                        .show();
                 } else {
                     $banner.hide();
                 }
+            },
+
+            /**
+             * Show temporary sync/auth feedback in the banner.
+             */
+            setSyncNotice: function(message, type = 'info', autoHideMs = 0) {
+                if (this.syncNoticeTimeoutId) {
+                    clearTimeout(this.syncNoticeTimeoutId);
+                    this.syncNoticeTimeoutId = null;
+                }
+
+                this.syncNotice = message;
+                this.syncNoticeType = type;
+                this.updateOfflineBanner();
+
+                if (autoHideMs > 0) {
+                    this.syncNoticeTimeoutId = setTimeout(() => {
+                        this.syncNotice = '';
+                        this.syncNoticeType = 'info';
+                        this.syncNoticeTimeoutId = null;
+                        this.updateOfflineBanner();
+                    }, autoHideMs);
+                }
+            },
+
+            /**
+             * Sleep helper used for retry backoff.
+             */
+            sleep: function(ms) {
+                return new Promise((resolve) => setTimeout(resolve, ms));
+            },
+
+            /**
+             * Promise wrapper around jQuery ajax with full error metadata.
+             */
+            performAjaxRequest: function(options) {
+                return new Promise((resolve, reject) => {
+                    $.ajax({
+                        timeout: 12000,
+                        ...options,
+                        success: (data) => resolve(data),
+                        error: (jqXHR, textStatus, errorThrown) => reject({ jqXHR, textStatus, errorThrown })
+                    });
+                });
+            },
+
+            /**
+             * Detect expired nonce/session errors.
+             */
+            isAuthFailure: function(errorOrResponse) {
+                if (errorOrResponse === '-1' || errorOrResponse === -1) {
+                    return true;
+                }
+
+                if (errorOrResponse?.success === false) {
+                    const message = String(errorOrResponse?.data?.message || '').toLowerCase();
+                    if (message.includes('session') || message.includes('nonce') || message.includes('logged in')) {
+                        return true;
+                    }
+                }
+
+                const jqXHR = errorOrResponse?.jqXHR || errorOrResponse;
+                const status = jqXHR?.status;
+                const bodyText = String(jqXHR?.responseText || '').trim();
+
+                if (status === 401 || status === 403) {
+                    return true;
+                }
+
+                return bodyText === '-1';
+            },
+
+            /**
+             * Detect transient network/server failures eligible for retry.
+             */
+            isTransientFailure: function(error) {
+                const jqXHR = error?.jqXHR || error;
+                const status = jqXHR?.status;
+                const textStatus = error?.textStatus;
+
+                if (textStatus === 'timeout') {
+                    return true;
+                }
+
+                return [0, 408, 429, 500, 502, 503, 504].includes(status);
+            },
+
+            /**
+             * Fetch and store a fresh frontend nonce.
+             */
+            refreshFrontendNonce: async function() {
+                if (!navigator.onLine) {
+                    return false;
+                }
+
+                try {
+                    const response = await this.performAjaxRequest({
+                        url: ratnotesFrontendData.ajaxUrl,
+                        type: 'POST',
+                        data: {
+                            action: 'ratnotes_refresh_nonce'
+                        }
+                    });
+
+                    if (response?.success && response?.data?.nonce) {
+                        ratnotesFrontendData.nonce = response.data.nonce;
+                        this.sessionExpired = false;
+                        return true;
+                    }
+                } catch (error) {
+                    console.error('Failed to refresh RatNotes nonce:', error);
+                }
+
+                this.sessionExpired = true;
+                this.setSyncNotice('Session expired - refresh and log in again.', 'error');
+                return false;
+            },
+
+            /**
+             * Resilient AJAX helper with retry and one-time nonce refresh.
+             */
+            ajaxRequest: async function(data, options = {}) {
+                const retries = Number.isInteger(options.retries) ? options.retries : 2;
+                const shouldRefreshNonce = options.refreshNonce !== false;
+                const payload = { ...data };
+                let refreshedNonce = false;
+
+                for (let attempt = 0; attempt <= retries; attempt++) {
+                    try {
+                        const response = await this.performAjaxRequest({
+                            url: ratnotesFrontendData.ajaxUrl,
+                            type: 'POST',
+                            data: payload
+                        });
+
+                        if (this.isAuthFailure(response)) {
+                            throw response;
+                        }
+
+                        if (this.sessionExpired) {
+                            this.sessionExpired = false;
+                        }
+
+                        if (this.syncNoticeType === 'error' && this.syncNotice.includes('Session expired')) {
+                            this.syncNotice = '';
+                            this.syncNoticeType = 'info';
+                        }
+
+                        return response;
+                    } catch (error) {
+                        if (this.isAuthFailure(error)) {
+                            if (shouldRefreshNonce && !refreshedNonce) {
+                                const nonceRefreshed = await this.refreshFrontendNonce();
+                                if (nonceRefreshed) {
+                                    payload.nonce = ratnotesFrontendData.nonce;
+                                    refreshedNonce = true;
+                                    continue;
+                                }
+                            }
+
+                            this.sessionExpired = true;
+                            this.setSyncNotice('Session expired - refresh and log in again.', 'error');
+                            throw error;
+                        }
+
+                        if (this.isTransientFailure(error) && attempt < retries) {
+                            await this.sleep(300 * (attempt + 1));
+                            continue;
+                        }
+
+                        throw error;
+                    }
+                }
+
+                throw new Error('RatNotes request failed after retries.');
             },
 
             /**
@@ -244,8 +454,36 @@
                 const tx = this.db.transaction('notes', 'readwrite');
                 const store = tx.objectStore('notes');
                 await this.idbRequest(store.put({ cacheKey, items, updatedAt: Date.now() }));
+                await this.idbRequest(store.put({ cacheKey: 'ratnotes_notes::last', items, updatedAt: Date.now() }));
             } catch (error) {
                 console.warn('Failed to write notes cache to IndexedDB:', error);
+            }
+        },
+
+        /**
+         * Read the latest notes cache entry from IndexedDB.
+         */
+        readLatestNotesFromIndexedDB: async function() {
+            if (!this.db) return null;
+            try {
+                const tx = this.db.transaction('notes', 'readonly');
+                const store = tx.objectStore('notes');
+
+                const latestRecord = await this.idbRequest(store.get('ratnotes_notes::last'));
+                if (latestRecord?.items && Array.isArray(latestRecord.items)) {
+                    return latestRecord.items;
+                }
+
+                const allRecords = await this.idbRequest(store.getAll());
+                if (!Array.isArray(allRecords) || allRecords.length === 0) {
+                    return null;
+                }
+
+                allRecords.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+                return Array.isArray(allRecords[0]?.items) ? allRecords[0].items : null;
+            } catch (error) {
+                console.warn('Failed to read latest notes cache from IndexedDB:', error);
+                return null;
             }
         },
 
@@ -380,6 +618,7 @@
             }
 
             await this.refreshPendingOperationsCount();
+            this.setSyncNotice('Change queued. It will sync automatically when online.', 'info', 2200);
         },
 
         /**
@@ -409,6 +648,7 @@
             this.renderNotes();
             const cacheKey = this.getNotesCacheKey();
             this.cacheData(cacheKey, this.notes);
+            this.cacheData('ratnotes_notes_last', this.notes);
             await this.writeNotesToIndexedDB(cacheKey, this.notes);
         },
 
@@ -420,7 +660,80 @@
             this.renderNotes();
             const cacheKey = this.getNotesCacheKey();
             this.cacheData(cacheKey, this.notes);
+            this.cacheData('ratnotes_notes_last', this.notes);
             await this.writeNotesToIndexedDB(cacheKey, this.notes);
+        },
+
+        /**
+         * Render queued local drafts if no notes cache is available.
+         */
+        renderQueuedDraftNotes: async function() {
+            const operations = await this.getQueuedOperations();
+            const saveOperations = (operations || []).filter((op) => op.type === 'save' && op.data);
+            if (!saveOperations.length) {
+                return false;
+            }
+
+            const draftsById = new Map();
+            for (const operation of saveOperations) {
+                const data = operation.data || {};
+                const draftId = operation.noteKey || data.id || `local-${operation.opId}`;
+                draftsById.set(String(draftId), {
+                    id: draftId,
+                    title: data.title || '',
+                    content: data.content || '',
+                    is_pinned: !!data.is_pinned,
+                    is_archived: !!data.is_archived,
+                    is_trashed: false,
+                    categories: this.buildCategoryDataFromIds(data.category_ids || []),
+                    labels: [],
+                    created_at: new Date(operation.queuedAt || Date.now()).toISOString(),
+                    updated_at: new Date(operation.queuedAt || Date.now()).toISOString(),
+                    pending_sync: true
+                });
+            }
+
+            this.notes = Array.from(draftsById.values()).sort(
+                (a, b) => new Date(b.updated_at) - new Date(a.updated_at)
+            );
+            this.renderNotes();
+            return true;
+        },
+
+        /**
+         * Try all offline note fallbacks before failing.
+         */
+        tryRenderOfflineNotes: async function(cacheKey) {
+            if (!this.db && this.dbReadyPromise) {
+                await this.dbReadyPromise;
+            }
+
+            const idbNotes = await this.readNotesFromIndexedDB(cacheKey);
+            if (Array.isArray(idbNotes)) {
+                this.notes = idbNotes;
+                this.renderNotes();
+                return true;
+            }
+
+            const latestIdbNotes = await this.readLatestNotesFromIndexedDB();
+            if (Array.isArray(latestIdbNotes)) {
+                this.notes = latestIdbNotes;
+                this.renderNotes();
+                return true;
+            }
+
+            const latestLocalNotes = this.readCache('ratnotes_notes_last');
+            if (Array.isArray(latestLocalNotes)) {
+                this.notes = latestLocalNotes;
+                this.renderNotes();
+                return true;
+            }
+
+            if (this.renderCachedState()) {
+                return true;
+            }
+
+            return this.renderQueuedDraftNotes();
         },
 
         /**
@@ -431,16 +744,14 @@
             if (!this.db) return;
 
             this.isSyncingQueue = true;
+            this.sessionExpired = false;
+            this.setSyncNotice('Syncing queued changes...', 'info');
             const operations = await this.getQueuedOperations();
 
             for (const operation of operations) {
                 try {
                     if (operation.type === 'save') {
-                        const response = await $.ajax({
-                            url: ratnotesFrontendData.ajaxUrl,
-                            type: 'POST',
-                            data: operation.data
-                        });
+                        const response = await this.ajaxRequest(operation.data, { retries: 2, refreshNonce: true });
 
                         if (!response.success) {
                             throw new Error(response.data?.message || 'Save replay failed');
@@ -457,11 +768,7 @@
                     }
 
                     if (operation.type === 'delete') {
-                        const response = await $.ajax({
-                            url: ratnotesFrontendData.ajaxUrl,
-                            type: 'POST',
-                            data: operation.data
-                        });
+                        const response = await this.ajaxRequest(operation.data, { retries: 2, refreshNonce: true });
 
                         if (!response.success) {
                             throw new Error(response.data?.message || 'Delete replay failed');
@@ -472,11 +779,7 @@
                     }
 
                     if (operation.type === 'restore') {
-                        const response = await $.ajax({
-                            url: ratnotesFrontendData.ajaxUrl,
-                            type: 'POST',
-                            data: operation.data
-                        });
+                        const response = await this.ajaxRequest(operation.data, { retries: 2, refreshNonce: true });
 
                         if (!response.success) {
                             throw new Error(response.data?.message || 'Restore replay failed');
@@ -492,6 +795,10 @@
 
             this.isSyncingQueue = false;
             await this.refreshPendingOperationsCount();
+
+            if (this.pendingOperationsCount === 0) {
+                this.setSyncNotice('All queued changes synced.', 'success', 2500);
+            }
         },
 
         /**
@@ -577,41 +884,46 @@
                     throw new Error('offline');
                 }
 
-                const response = await $.ajax({
-                    url: ratnotesFrontendData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'ratnotes_get_notes',
-                        nonce: ratnotesFrontendData.nonce,
-                        status: this.currentStatus,
-                        category: this.currentCategory === 'all' ? '' : this.currentCategory,
-                        search: this.$container.find('.ratnotes-frontend-search-input').val() || ''
-                    }
-                });
+                const response = await this.ajaxRequest({
+                    action: 'ratnotes_get_notes',
+                    nonce: ratnotesFrontendData.nonce,
+                    status: this.currentStatus,
+                    category: this.currentCategory === 'all' ? '' : this.currentCategory,
+                    search: this.$container.find('.ratnotes-frontend-search-input').val() || ''
+                }, { retries: 2, refreshNonce: true });
+
+                if (!response || typeof response.success === 'undefined') {
+                    throw new Error('invalid_response');
+                }
 
                 if (response.success) {
                     this.notes = response.data;
                     this.cacheData(cacheKey, this.notes);
+                    this.cacheData('ratnotes_notes_last', this.notes);
                     await this.writeNotesToIndexedDB(cacheKey, this.notes);
                     this.isOffline = false;
                     this.updateOfflineBanner();
                     this.renderNotes();
                 } else {
-                    this.showError(response.data?.message || 'Failed to load notes');
+                    const renderedOffline = await this.tryRenderOfflineNotes(cacheKey);
+                    if (!renderedOffline) {
+                        this.showError(response.data?.message || 'Failed to load notes');
+                    }
                 }
             } catch (error) {
                 console.error('Error loading notes:', error);
-                this.isOffline = true;
-                this.updateOfflineBanner();
 
-                const idbNotes = await this.readNotesFromIndexedDB(cacheKey);
-                if (Array.isArray(idbNotes)) {
-                    this.notes = idbNotes;
-                    this.renderNotes();
+                if (this.isAuthFailure(error)) {
+                    this.sessionExpired = true;
+                    this.updateOfflineBanner();
                     return;
                 }
 
-                if (!this.renderCachedState()) {
+                this.isOffline = true;
+                this.updateOfflineBanner();
+
+                const renderedOffline = await this.tryRenderOfflineNotes(cacheKey);
+                if (!renderedOffline) {
                     this.showError('Failed to load notes');
                 }
             } finally {
@@ -629,14 +941,10 @@
                     throw new Error('offline');
                 }
 
-                const response = await $.ajax({
-                    url: ratnotesFrontendData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'ratnotes_get_categories',
-                        nonce: ratnotesFrontendData.nonce
-                    }
-                });
+                const response = await this.ajaxRequest({
+                    action: 'ratnotes_get_categories',
+                    nonce: ratnotesFrontendData.nonce
+                }, { retries: 2, refreshNonce: true });
 
                 if (response.success) {
                     this.categories = response.data || [];
@@ -651,6 +959,13 @@
                 }
             } catch (error) {
                 console.error('Error loading categories:', error);
+
+                if (this.isAuthFailure(error)) {
+                    this.sessionExpired = true;
+                    this.updateOfflineBanner();
+                    return;
+                }
+
                 this.isOffline = true;
                 this.updateOfflineBanner();
 
@@ -756,15 +1071,11 @@
             $error.hide();
 
             try {
-                const response = await $.ajax({
-                    url: ratnotesFrontendData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'ratnotes_create_category',
-                        nonce: ratnotesFrontendData.nonce,
-                        name: name
-                    }
-                });
+                const response = await this.ajaxRequest({
+                    action: 'ratnotes_create_category',
+                    nonce: ratnotesFrontendData.nonce,
+                    name: name
+                }, { retries: 1, refreshNonce: true });
 
                 if (response.success) {
                     $input.val('');
@@ -774,7 +1085,13 @@
                 }
             } catch (err) {
                 console.error('Error creating category:', err);
-                $error.text('Failed to create category').show();
+                if (this.isAuthFailure(err)) {
+                    this.sessionExpired = true;
+                    this.updateOfflineBanner();
+                    $error.text('Session expired. Refresh and log in again.').show();
+                } else {
+                    $error.text('Failed to create category').show();
+                }
             } finally {
                 $submit.prop('disabled', false);
             }
@@ -983,21 +1300,17 @@
                     return;
                 }
 
-                const response = await $.ajax({
-                    url: ratnotesFrontendData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'ratnotes_save_note',
-                        nonce: ratnotesFrontendData.nonce,
-                        id: this.currentNote ? this.currentNote.id : 0,
-                        title: title,
-                        content: content,
-                        is_pinned: this.currentNote ? this.currentNote.is_pinned : false,
-                        is_archived: this.currentNote ? this.currentNote.is_archived : false,
-                        category_ids: this.selectedModalCategoryIds,
-                        category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
-                    }
-                });
+                const response = await this.ajaxRequest({
+                    action: 'ratnotes_save_note',
+                    nonce: ratnotesFrontendData.nonce,
+                    id: this.currentNote ? this.currentNote.id : 0,
+                    title: title,
+                    content: content,
+                    is_pinned: this.currentNote ? this.currentNote.is_pinned : false,
+                    is_archived: this.currentNote ? this.currentNote.is_archived : false,
+                    category_ids: this.selectedModalCategoryIds,
+                    category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
+                }, { retries: 2, refreshNonce: true });
 
                 if (response.success) {
                     this.closeModal();
@@ -1008,6 +1321,13 @@
                 }
             } catch (error) {
                 console.error('Error saving note:', error);
+
+                if (this.isAuthFailure(error)) {
+                    this.sessionExpired = true;
+                    this.updateOfflineBanner();
+                    this.showError('Session expired. Refresh and log in again.');
+                    return;
+                }
 
                 await this.upsertLocalNote(draft);
                 await this.enqueueOperation({
@@ -1058,16 +1378,12 @@
             }
 
             try {
-                const response = await $.ajax({
-                    url: ratnotesFrontendData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'ratnotes_delete_note',
-                        nonce: ratnotesFrontendData.nonce,
-                        id: this.currentNote.id,
-                        force: this.currentStatus === 'trash'
-                    }
-                });
+                const response = await this.ajaxRequest({
+                    action: 'ratnotes_delete_note',
+                    nonce: ratnotesFrontendData.nonce,
+                    id: this.currentNote.id,
+                    force: this.currentStatus === 'trash'
+                }, { retries: 2, refreshNonce: true });
 
                 if (response.success) {
                     this.closeModal();
@@ -1078,6 +1394,14 @@
                 }
             } catch (error) {
                 console.error('Error deleting note:', error);
+
+                if (this.isAuthFailure(error)) {
+                    this.sessionExpired = true;
+                    this.updateOfflineBanner();
+                    this.showError('Session expired. Refresh and log in again.');
+                    return;
+                }
+
                 await this.removeLocalNote(this.currentNote.id);
                 await this.enqueueOperation({
                     type: 'delete',
@@ -1118,15 +1442,11 @@
             }
 
             try {
-                const response = await $.ajax({
-                    url: ratnotesFrontendData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'ratnotes_restore_note',
-                        nonce: ratnotesFrontendData.nonce,
-                        id: noteId
-                    }
-                });
+                const response = await this.ajaxRequest({
+                    action: 'ratnotes_restore_note',
+                    nonce: ratnotesFrontendData.nonce,
+                    id: noteId
+                }, { retries: 2, refreshNonce: true });
 
                 if (response.success) {
                     await this.removeLocalNote(noteId);
@@ -1136,6 +1456,14 @@
                 }
             } catch (error) {
                 console.error('Error restoring note:', error);
+
+                if (this.isAuthFailure(error)) {
+                    this.sessionExpired = true;
+                    this.updateOfflineBanner();
+                    this.showError('Session expired. Refresh and log in again.');
+                    return;
+                }
+
                 await this.removeLocalNote(noteId);
                 await this.enqueueOperation({
                     type: 'restore',
@@ -1188,21 +1516,17 @@
                     return;
                 }
 
-                const response = await $.ajax({
-                    url: ratnotesFrontendData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'ratnotes_save_note',
-                        nonce: ratnotesFrontendData.nonce,
-                        id: this.currentNote.id,
-                        title: this.currentNote.title,
-                        content: this.currentNote.content,
-                        is_pinned: this.currentNote.is_pinned,
-                        is_archived: !isArchived,
-                        category_ids: this.selectedModalCategoryIds,
-                        category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
-                    }
-                });
+                const response = await this.ajaxRequest({
+                    action: 'ratnotes_save_note',
+                    nonce: ratnotesFrontendData.nonce,
+                    id: this.currentNote.id,
+                    title: this.currentNote.title,
+                    content: this.currentNote.content,
+                    is_pinned: this.currentNote.is_pinned,
+                    is_archived: !isArchived,
+                    category_ids: this.selectedModalCategoryIds,
+                    category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
+                }, { retries: 2, refreshNonce: true });
 
                 if (response.success) {
                     this.closeModal();
@@ -1213,6 +1537,14 @@
                 }
             } catch (error) {
                 console.error('Error archiving note:', error);
+
+                if (this.isAuthFailure(error)) {
+                    this.sessionExpired = true;
+                    this.updateOfflineBanner();
+                    this.showError('Session expired. Refresh and log in again.');
+                    return;
+                }
+
                 await this.enqueueOperation({
                     type: 'save',
                     noteKey: this.currentNote.id,
@@ -1270,21 +1602,17 @@
             }
 
             try {
-                const response = await $.ajax({
-                    url: ratnotesFrontendData.ajaxUrl,
-                    type: 'POST',
-                    data: {
-                        action: 'ratnotes_save_note',
-                        nonce: ratnotesFrontendData.nonce,
-                        id: this.currentNote.id,
-                        title: this.currentNote.title,
-                        content: this.currentNote.content,
-                        is_pinned: !this.currentNote.is_pinned,
-                        is_archived: this.currentNote.is_archived,
-                        category_ids: this.selectedModalCategoryIds,
-                        category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
-                    }
-                });
+                const response = await this.ajaxRequest({
+                    action: 'ratnotes_save_note',
+                    nonce: ratnotesFrontendData.nonce,
+                    id: this.currentNote.id,
+                    title: this.currentNote.title,
+                    content: this.currentNote.content,
+                    is_pinned: !this.currentNote.is_pinned,
+                    is_archived: this.currentNote.is_archived,
+                    category_ids: this.selectedModalCategoryIds,
+                    category_ids_json: JSON.stringify(this.selectedModalCategoryIds)
+                }, { retries: 2, refreshNonce: true });
 
                 if (response.success) {
                     this.currentNote.is_pinned = !this.currentNote.is_pinned;
@@ -1296,6 +1624,14 @@
                 }
             } catch (error) {
                 console.error('Error toggling pin:', error);
+
+                if (this.isAuthFailure(error)) {
+                    this.sessionExpired = true;
+                    this.updateOfflineBanner();
+                    this.showError('Session expired. Refresh and log in again.');
+                    return;
+                }
+
                 await this.enqueueOperation({
                     type: 'save',
                     noteKey: this.currentNote.id,
