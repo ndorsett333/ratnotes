@@ -46,6 +46,7 @@ class Main {
         add_action( 'init', array( $this, 'register_post_type' ) );
         add_action( 'init', array( $this, 'register_taxonomy' ) );
         add_action( 'init', array( $this, 'add_rewrite_rules' ) );
+        add_action( 'template_redirect', array( $this, 'serve_manifest' ), 0 );
         add_action( 'template_redirect', array( $this, 'serve_service_worker' ), 0 );
         add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
         add_action( 'admin_init', array( $this, 'handle_menu_redirect' ) );
@@ -219,6 +220,91 @@ class Main {
     }
 
     /**
+     * Get the canonical RatNotes archive path.
+     *
+     * @return string
+     */
+    public static function get_archive_path(): string {
+        return '/ratnotes-archive/';
+    }
+
+    /**
+     * Get the canonical RatNotes archive URL.
+     *
+     * @return string
+     */
+    public static function get_archive_url(): string {
+        return home_url( self::get_archive_path() );
+    }
+
+    /**
+     * Get the plugin base path for public assets.
+     *
+     * @return string
+     */
+    public static function get_plugin_base_path(): string {
+        $plugin_base_path = parse_url( RATNOTES_PLUGIN_URL, PHP_URL_PATH );
+        if ( empty( $plugin_base_path ) ) {
+            $plugin_base_path = '/wp-content/plugins/ratnotes/';
+        }
+
+        if ( '/' !== substr( $plugin_base_path, -1 ) ) {
+            $plugin_base_path .= '/';
+        }
+
+        return $plugin_base_path;
+    }
+
+    /**
+     * Serve the web app manifest from a stable root URL.
+     */
+    public function serve_manifest() {
+        if ( ! isset( $_GET['ratnotes_manifest'] ) ) {
+            return;
+        }
+
+        $plugin_base_path = self::get_plugin_base_path();
+        $archive_path     = self::get_archive_path();
+        $archive_url      = self::get_archive_url();
+
+        $manifest = array(
+            'id'               => $archive_url,
+            'name'             => 'RatNotes',
+            'short_name'       => 'RatNotes',
+            'description'      => 'RatNotes archive app',
+            'start_url'        => $archive_path,
+            'scope'            => $archive_path,
+            'display'          => 'standalone',
+            'background_color' => '#12121f',
+            'theme_color'      => '#1e1e2e',
+            'icons'            => array(
+                array(
+                    'src'   => $plugin_base_path . 'frontend/icons/ratnotes180.png',
+                    'sizes' => '180x180',
+                    'type'  => 'image/png',
+                ),
+                array(
+                    'src'   => $plugin_base_path . 'frontend/icons/ratnotes167.png',
+                    'sizes' => '167x167',
+                    'type'  => 'image/png',
+                ),
+                array(
+                    'src'   => $plugin_base_path . 'frontend/icons/ratnotes.png',
+                    'sizes' => '512x512',
+                    'type'  => 'image/png',
+                ),
+            ),
+        );
+
+        header( 'Content-Type: application/manifest+json; charset=UTF-8' );
+        header( 'Cache-Control: no-cache, no-store, must-revalidate' );
+        header( 'Pragma: no-cache' );
+        header( 'Expires: 0' );
+        echo wp_json_encode( $manifest );
+        exit;
+    }
+
+    /**
      * Serve the service worker JavaScript from a stable root URL.
      */
     public function serve_service_worker() {
@@ -238,23 +324,19 @@ class Main {
             exit;
         }
 
-        $plugin_base_path = parse_url( RATNOTES_PLUGIN_URL, PHP_URL_PATH );
-        if ( empty( $plugin_base_path ) ) {
-            $plugin_base_path = '/wp-content/plugins/ratnotes/';
-        }
-
-        if ( '/' !== substr( $plugin_base_path, -1 ) ) {
-            $plugin_base_path .= '/';
-        }
+        $plugin_base_path = self::get_plugin_base_path();
+        $archive_path     = self::get_archive_path();
+        $manifest_url     = home_url( '/?ratnotes_manifest=1' );
 
         $offline_html = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RatNotes Offline</title><style>body{margin:0;padding:24px;background:#12121f;color:#cdd6f4;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif}.card{max-width:520px;margin:10vh auto;background:#1e1e2e;border:1px solid #45475a;border-radius:10px;padding:20px}h1{margin:0 0 8px;font-size:22px}p{margin:0;color:#a6adc8;line-height:1.5}</style></head><body><div class="card"><h1>Offline</h1><p>RatNotes cannot reach the network right now. Reconnect to load fresh notes.</p></div></body></html>';
 
         $sw_content = str_replace(
-            array( '__RATNOTES_CACHE_NAME__', '__RATNOTES_ARCHIVE_PATH__', '__RATNOTES_PLUGIN_BASE_PATH__', '__RATNOTES_OFFLINE_HTML__' ),
+            array( '__RATNOTES_CACHE_NAME__', '__RATNOTES_ARCHIVE_PATH__', '__RATNOTES_PLUGIN_BASE_PATH__', '__RATNOTES_MANIFEST_URL__', '__RATNOTES_OFFLINE_HTML__' ),
             array(
                 'ratnotes-cache-v' . RATNOTES_VERSION,
-                '/ratnotes-archive/',
+                $archive_path,
                 $plugin_base_path,
+                $manifest_url,
                 wp_json_encode( $offline_html )
             ),
             $sw_content
@@ -264,7 +346,7 @@ class Main {
         header( 'Cache-Control: no-cache, no-store, must-revalidate' );
         header( 'Pragma: no-cache' );
         header( 'Expires: 0' );
-        header( 'Service-Worker-Allowed: /ratnotes-archive/' );
+        header( 'Service-Worker-Allowed: ' . $archive_path );
         echo $sw_content;
         exit;
     }

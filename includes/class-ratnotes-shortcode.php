@@ -212,7 +212,9 @@ class Shortcode {
 				'userId'  => get_current_user_id(),
 				'isLoggedIn' => is_user_logged_in(),
 				'serviceWorkerUrl' => home_url( '/?ratnotes_sw=1' ),
-				'serviceWorkerScope' => '/ratnotes-archive/',
+				'serviceWorkerScope' => Main::get_archive_path(),
+				'archiveStartUrl' => Main::get_archive_url(),
+				'manifestUrl' => home_url( '/?ratnotes_manifest=1' ),
 				'strings' => array(
 					'confirmDelete' => __( 'Are you sure you want to delete this note?', 'ratnotes' ),
 					'confirmDeleteForever' => __( 'Are you sure you want to delete? This will delete this note forever.', 'ratnotes' ),

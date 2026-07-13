@@ -43,7 +43,9 @@ wp_localize_script(
 		'userId'     => $current_user->ID,
 		'isLoggedIn' => $is_logged_in,
 		'serviceWorkerUrl' => home_url( '/?ratnotes_sw=1' ),
-		'serviceWorkerScope' => '/ratnotes-archive/',
+		'serviceWorkerScope' => \RatNotes\Main::get_archive_path(),
+		'archiveStartUrl' => \RatNotes\Main::get_archive_url(),
+		'manifestUrl' => home_url( '/?ratnotes_manifest=1' ),
 		'strings'    => array(
 			'confirmDelete' => __( 'Are you sure you want to delete this note?', 'ratnotes' ),
 			'createNote'    => __( 'Create Note', 'ratnotes' ),
@@ -66,7 +68,7 @@ $site_url  = home_url();
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-status-bar-style" content="default">
 	<meta name="apple-mobile-web-app-title" content="<?php esc_attr_e( 'RatNotes', 'ratnotes' ); ?>">
-	<link rel="manifest" href="<?php echo esc_url( RATNOTES_PLUGIN_URL . 'frontend/manifest.json' ); ?>">
+	<link rel="manifest" href="<?php echo esc_url( home_url( '/?ratnotes_manifest=1' ) ); ?>">
 	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo esc_url( RATNOTES_PLUGIN_URL . 'frontend/icons/ratnotes180.png' ); ?>">
 	<title><?php esc_html_e( 'RatNotes Archive', 'ratnotes' ); ?> - <?php echo esc_html( $site_name ); ?></title>
 	<?php wp_head(); ?>

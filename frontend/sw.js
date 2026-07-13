@@ -1,6 +1,7 @@
 const CACHE_NAME = '__RATNOTES_CACHE_NAME__';
 const ARCHIVE_PATH = '__RATNOTES_ARCHIVE_PATH__';
 const PLUGIN_BASE_PATH = '__RATNOTES_PLUGIN_BASE_PATH__';
+const MANIFEST_URL = '__RATNOTES_MANIFEST_URL__';
 const OFFLINE_HTML = '__RATNOTES_OFFLINE_HTML__';
 
 const ARCHIVE_PATH_NO_TRAILING = ARCHIVE_PATH.endsWith('/')
@@ -15,7 +16,7 @@ const APP_SHELL_URLS = [
   ARCHIVE_PATH_WITH_TRAILING,
   `${PLUGIN_BASE_PATH}frontend/css/frontend.css`,
   `${PLUGIN_BASE_PATH}frontend/js/frontend.js`,
-  `${PLUGIN_BASE_PATH}frontend/manifest.json`,
+  MANIFEST_URL,
   `${PLUGIN_BASE_PATH}frontend/icons/ratnotes.png`,
   `${PLUGIN_BASE_PATH}frontend/icons/ratnotes167.png`,
   `${PLUGIN_BASE_PATH}frontend/icons/ratnotes180.png`,
@@ -25,18 +26,83 @@ const APP_SHELL_URLS = [
   '/wp-includes/fonts/dashicons.ttf'
 ];
 
-async function precacheShell(cache) {
-  await Promise.all(
-    APP_SHELL_URLS.map(async (url) => {
-      try {
-        await cache.add(url);
-      } catch (error) {
-        // Optional asset failures should not block service worker installation.
-        console.warn('[RatNotes SW] Failed to precache:', url, error);
-      }
-    })
-  );
+function normalizePath(pathname) {
+  if (!pathname) {
+    return '/';
+  }
+
+  const trimmed = pathname.replace(/\/+$/, '');
+  return trimmed || '/';
 }
+
+function isArchivePath(pathname) {
+  return normalizePath(pathname) === normalizePath(ARCHIVE_PATH_WITH_TRAILING);
+}
+
+async function cacheUrl(cache, url, cacheKey = url) {
+  const request = new Request(url, {
+    cache: 'reload',
+    credentials: 'same-origin'
+  });
+  const response = await fetch(request);
+
+  if (!response || !response.ok) {
+    throw new Error(`Failed to fetch ${url}: ${response ? response.status : 'no response'}`);
+  }
+
+  await cache.put(cacheKey, response.clone());
+  return response;
+}
+
+async function precacheShell(cache) {
+  for (const url of APP_SHELL_URLS) {
+    try {
+      await cacheUrl(cache, url);
+    } catch (error) {
+      // Optional asset failures should not block service worker installation.
+      console.warn('[RatNotes SW] Failed to precache:', url, error);
+    }
+  }
+
+  try {
+    const archiveResponse = await cacheUrl(cache, ARCHIVE_PATH_WITH_TRAILING, ARCHIVE_PATH_WITH_TRAILING);
+    await cache.put(ARCHIVE_PATH_NO_TRAILING, archiveResponse.clone());
+  } catch (error) {
+    console.warn('[RatNotes SW] Failed to precache canonical archive shell:', error);
+  }
+}
+
+async function warmShell(urls = []) {
+  const cache = await caches.open(CACHE_NAME);
+  const uniqueUrls = Array.from(new Set([
+    ARCHIVE_PATH_NO_TRAILING,
+    ARCHIVE_PATH_WITH_TRAILING,
+    MANIFEST_URL,
+    ...urls
+  ]));
+
+  for (const url of uniqueUrls) {
+    try {
+      if (isArchivePath(new URL(url, self.location.origin).pathname)) {
+        const archiveResponse = await cacheUrl(cache, ARCHIVE_PATH_WITH_TRAILING, ARCHIVE_PATH_WITH_TRAILING);
+        await cache.put(ARCHIVE_PATH_NO_TRAILING, archiveResponse.clone());
+        continue;
+      }
+
+      await cacheUrl(cache, url);
+    } catch (error) {
+      console.warn('[RatNotes SW] Failed to warm URL:', url, error);
+    }
+  }
+}
+
+self.addEventListener('message', (event) => {
+  if (!event.data || event.data.type !== 'ratnotes-warm-shell') {
+    return;
+  }
+
+  event.waitUntil(warmShell(Array.isArray(event.data.urls) ? event.data.urls : []));
+});
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -72,6 +138,37 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
+    if (isArchivePath(url.pathname)) {
+      event.respondWith(
+        caches.open(CACHE_NAME).then(async (cache) => {
+          const cachedArchive = await cache.match(ARCHIVE_PATH_WITH_TRAILING)
+            || await cache.match(ARCHIVE_PATH_NO_TRAILING)
+            || await caches.match(ARCHIVE_PATH_WITH_TRAILING)
+            || await caches.match(ARCHIVE_PATH_NO_TRAILING);
+
+          if (cachedArchive) {
+            return cachedArchive;
+          }
+
+          try {
+            const response = await fetch(request);
+            if (response && response.ok) {
+              await cache.put(ARCHIVE_PATH_WITH_TRAILING, response.clone());
+              await cache.put(ARCHIVE_PATH_NO_TRAILING, response.clone());
+            }
+            return response;
+          } catch (error) {
+            return new Response(OFFLINE_HTML, {
+              headers: {
+                'Content-Type': 'text/html; charset=UTF-8'
+              }
+            });
+          }
+        })
+      );
+      return;
+    }
+
     event.respondWith(
       fetch(request)
         .then((response) => {

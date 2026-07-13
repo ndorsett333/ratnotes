@@ -116,15 +116,35 @@
             if (!('serviceWorker' in navigator)) return;
             if (!ratnotesFrontendData?.serviceWorkerUrl) return;
 
-            window.addEventListener('load', () => {
-                navigator.serviceWorker
-                    .register(ratnotesFrontendData.serviceWorkerUrl, {
-                        scope: ratnotesFrontendData.serviceWorkerScope || '/ratnotes-archive/'
-                    })
-                    .catch((error) => {
-                        console.error('Service worker registration failed:', error);
-                    });
-            });
+            navigator.serviceWorker
+                .register(ratnotesFrontendData.serviceWorkerUrl, {
+                    scope: ratnotesFrontendData.serviceWorkerScope || '/ratnotes-archive/'
+                })
+                .then(() => navigator.serviceWorker.ready)
+                .then((registration) => {
+                    const shellUrls = [
+                        ratnotesFrontendData.archiveStartUrl,
+                        ratnotesFrontendData.serviceWorkerScope,
+                        ratnotesFrontendData.manifestUrl
+                    ].filter(Boolean);
+
+                    if (registration.active) {
+                        registration.active.postMessage({
+                            type: 'ratnotes-warm-shell',
+                            urls: shellUrls
+                        });
+                    }
+
+                    return Promise.all(shellUrls.map((url) =>
+                        fetch(url, {
+                            credentials: 'same-origin',
+                            cache: 'reload'
+                        }).catch(() => null)
+                    ));
+                })
+                .catch((error) => {
+                    console.error('Service worker registration failed:', error);
+                });
         },
 
             /**
