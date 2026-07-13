@@ -25,6 +25,7 @@
         syncNotice: '',
         syncNoticeType: 'info',
         syncNoticeTimeoutId: null,
+        installHintDismissed: false,
         db: null,
         dbReadyPromise: null,
         $container: null,
@@ -41,9 +42,71 @@
             this.dbReadyPromise = this.initIndexedDB();
             this.bindConnectivityEvents();
             this.ensureOfflineBanner();
+            this.ensureInstallHint();
             this.bindEvents();
             this.loadCategories();
             this.loadNotes();
+            this.updateInstallHint();
+        },
+
+        /**
+         * Detect if current device is iOS.
+         */
+        isIOSDevice: function() {
+            const ua = window.navigator.userAgent || '';
+            const platform = window.navigator.platform || '';
+            const maxTouchPoints = window.navigator.maxTouchPoints || 0;
+
+            const iOSPlatform = /iPad|iPhone|iPod/.test(platform);
+            const iOSUserAgent = /iPad|iPhone|iPod/.test(ua);
+            const iPadOSDesktopMode = platform === 'MacIntel' && maxTouchPoints > 1;
+
+            return iOSPlatform || iOSUserAgent || iPadOSDesktopMode;
+        },
+
+        /**
+         * Detect whether app is running in standalone mode.
+         */
+        isStandaloneDisplay: function() {
+            const mediaStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+            const navigatorStandalone = window.navigator.standalone === true;
+            return mediaStandalone || navigatorStandalone;
+        },
+
+        /**
+         * Create iOS install hint container if missing.
+         */
+        ensureInstallHint: function() {
+            if (this.$container.find('.ratnotes-frontend-install-hint').length) return;
+
+            this.installHintDismissed = localStorage.getItem('ratnotes_ios_install_hint_dismissed') === '1';
+
+            this.$container.prepend(
+                '<div class="ratnotes-frontend-install-hint" style="display:none;">' +
+                    '<div class="ratnotes-frontend-install-hint-text">On iPhone/iPad: tap Share, then Add to Home Screen for app-like access.</div>' +
+                    '<button type="button" class="ratnotes-frontend-install-hint-close" aria-label="Dismiss install hint">&times;</button>' +
+                '</div>'
+            );
+        },
+
+        /**
+         * Show install guidance only where it helps (iOS Safari, not standalone).
+         */
+        updateInstallHint: function() {
+            const $hint = this.$container.find('.ratnotes-frontend-install-hint');
+            if (!$hint.length) return;
+
+            if (this.installHintDismissed) {
+                $hint.hide();
+                return;
+            }
+
+            const shouldShow = this.isIOSDevice() && !this.isStandaloneDisplay();
+            if (shouldShow) {
+                $hint.show();
+            } else {
+                $hint.hide();
+            }
         },
 
         /**
@@ -866,6 +929,13 @@
 
             // Keyboard shortcuts
             $(document).on('keydown', (e) => this.handleKeyboard(e));
+
+            // Dismiss install hint
+            this.$container.on('click', '.ratnotes-frontend-install-hint-close', () => {
+                this.installHintDismissed = true;
+                localStorage.setItem('ratnotes_ios_install_hint_dismissed', '1');
+                this.updateInstallHint();
+            });
         },
 
         /**
