@@ -844,6 +844,21 @@
 	}
 }
 
+/*
+ * iOS auto-zooms the page whenever a focused text field has a font-size
+ * below 16px, and never zooms back out. Force focusable fields to 16px on
+ * touch devices so tapping into a note (or search) never triggers the zoom.
+ * Scoped to coarse pointers so desktop sizing is untouched.
+ */
+@media (pointer: coarse) {
+	textarea.ratnotes-frontend-note-content,
+	input.ratnotes-frontend-note-title,
+	.ratnotes-frontend-search-input,
+	.ratnotes-frontend-category-create-input {
+		font-size: 16px;
+	}
+}
+
 @media (max-width: 480px) {
 	.ratnotes-frontend-grid {
 		grid-template-columns: 1fr;
