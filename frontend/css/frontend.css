@@ -468,7 +468,7 @@
 	cursor: pointer;
 	transition: box-shadow 0.2s, transform 0.1s, background-color 0.2s;
 	position: relative;
-	min-height: 100px;
+	min-height: 200px;
 	color: #cdd6f4;
 }
 
@@ -526,6 +526,18 @@
 	white-space: pre-wrap;
 	word-wrap: break-word;
 	flex: 1;
+}
+
+/*
+ * Card preview only: show the first several lines then hard-clip with no
+ * ellipsis. max-height is a whole multiple of the line height (1.6 x 14px)
+ * so text is never cut mid-line. Scoped to cards inside .ratnotes-frontend-note
+ * so it never touches the modal editor textarea (full note stays intact).
+ */
+.ratnotes-frontend-note .ratnotes-frontend-note-content {
+	min-height: 0;
+	max-height: 9.6em;
+	overflow: hidden;
 }
 
 .ratnotes-frontend-note-labels {
@@ -648,7 +660,7 @@
 	border-bottom: 1px solid #45475a;
 }
 
-.ratnotes-frontend-note-title {
+input.ratnotes-frontend-note-title {
 	flex: 1;
 	border: none;
 	font-size: 18px;
@@ -659,7 +671,7 @@
 	color: #cdd6f4;
 }
 
-.ratnotes-frontend-note-title:focus {
+input.ratnotes-frontend-note-title:focus {
 	outline: none;
 }
 
@@ -687,7 +699,7 @@
 	overflow-y: auto;
 }
 
-.ratnotes-frontend-note-content {
+textarea.ratnotes-frontend-note-content {
 	width: 100%;
 	min-height: 200px;
 	border: none;
@@ -700,11 +712,11 @@
 	color: #bac2de;
 }
 
-.ratnotes-frontend-note-content:focus {
+textarea.ratnotes-frontend-note-content:focus {
 	outline: none;
 }
 
-.ratnotes-frontend-note-content::placeholder {
+textarea.ratnotes-frontend-note-content::placeholder {
 	color: #6c7086;
 }
 
