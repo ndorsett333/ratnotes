@@ -1199,11 +1199,11 @@
                 return;
             }
 
-            // Sort: pinned first
+            // Sort: pinned first, then newest created first
             const sortedNotes = [...notes].sort((a, b) => {
                 if (a.is_pinned && !b.is_pinned) return -1;
                 if (!a.is_pinned && b.is_pinned) return 1;
-                return new Date(b.updated_at) - new Date(a.updated_at);
+                return new Date(b.created_at) - new Date(a.created_at);
             });
 
             $grid.html(
