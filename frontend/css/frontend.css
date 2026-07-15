@@ -469,6 +469,9 @@
 	transition: box-shadow 0.2s, transform 0.1s, background-color 0.2s;
 	position: relative;
 	min-height: 200px;
+	/* Allow the card to shrink to its grid track instead of stretching to
+	   fit an unbreakable token (e.g. a long pasted URL) and blowing out the column. */
+	min-width: 0;
 	color: #cdd6f4;
 }
 
@@ -513,6 +516,7 @@
 	margin-bottom: 8px;
 	color: #cdd6f4;
 	line-height: 1.4;
+	overflow-wrap: anywhere;
 }
 
 .ratnotes-frontend-note:empty + .ratnotes-frontend-note-content {
@@ -525,6 +529,9 @@
 	line-height: 1.6;
 	white-space: pre-wrap;
 	word-wrap: break-word;
+	/* anywhere (unlike break-word) lets long unbreakable tokens like URLs
+	   break for wrapping AND shrink the min-content used for grid sizing. */
+	overflow-wrap: anywhere;
 	flex: 1;
 }
 
