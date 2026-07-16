@@ -42,11 +42,9 @@
             this.dbReadyPromise = this.initIndexedDB();
             this.bindConnectivityEvents();
             this.ensureOfflineBanner();
-            this.ensureInstallHint();
             this.bindEvents();
             this.loadCategories();
             this.loadNotes();
-            this.updateInstallHint();
         },
 
         /**

@@ -857,9 +857,27 @@ textarea.ratnotes-frontend-note-content::placeholder {
 		flex-wrap: wrap;
 	}
 
+	/*
+	 * On phones the modal becomes a near-full-height sheet instead of a
+	 * content-sized box. dvh tracks the real viewport on iOS (with a vh
+	 * fallback), and the body/textarea flex to fill the extra height.
+	 */
 	.ratnotes-frontend-modal-content {
 		width: 95%;
-		max-height: 95vh;
+		height: 92vh;
+		height: 92dvh;
+		max-height: 92vh;
+		max-height: 92dvh;
+	}
+
+	.ratnotes-frontend-modal-body {
+		display: flex;
+		flex-direction: column;
+	}
+
+	textarea.ratnotes-frontend-note-content {
+		flex: 1;
+		height: 100%;
 	}
 }
 
