@@ -139,17 +139,12 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     if (isArchivePath(url.pathname)) {
+      // Network-first: the archive HTML is auth-dependent (login form vs.
+      // notes UI), so we must always fetch fresh when online and never serve
+      // a stale logged-out/logged-in snapshot. Cache is only a fallback for
+      // offline launches.
       event.respondWith(
         caches.open(CACHE_NAME).then(async (cache) => {
-          const cachedArchive = await cache.match(ARCHIVE_PATH_WITH_TRAILING)
-            || await cache.match(ARCHIVE_PATH_NO_TRAILING)
-            || await caches.match(ARCHIVE_PATH_WITH_TRAILING)
-            || await caches.match(ARCHIVE_PATH_NO_TRAILING);
-
-          if (cachedArchive) {
-            return cachedArchive;
-          }
-
           try {
             const response = await fetch(request);
             if (response && response.ok) {
@@ -158,6 +153,15 @@ self.addEventListener('fetch', (event) => {
             }
             return response;
           } catch (error) {
+            const cachedArchive = await cache.match(ARCHIVE_PATH_WITH_TRAILING)
+              || await cache.match(ARCHIVE_PATH_NO_TRAILING)
+              || await caches.match(ARCHIVE_PATH_WITH_TRAILING)
+              || await caches.match(ARCHIVE_PATH_NO_TRAILING);
+
+            if (cachedArchive) {
+              return cachedArchive;
+            }
+
             return new Response(OFFLINE_HTML, {
               headers: {
                 'Content-Type': 'text/html; charset=UTF-8'
