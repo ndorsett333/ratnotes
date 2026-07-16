@@ -52,6 +52,7 @@ class Main {
         add_action( 'admin_init', array( $this, 'handle_menu_redirect' ) );
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_assets' ) );
         add_action( 'template_include', array( $this, 'load_archive_template' ) );
+        add_action( 'wp', array( $this, 'maybe_hide_admin_bar' ) );
         add_action( 'admin_bar_menu', array( $this, 'add_admin_bar_link' ), 100 );
         add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
         add_filter( 'manage_ratnote_posts_columns', array( $this, 'add_status_column' ) );
@@ -366,6 +367,19 @@ class Main {
             }
         }
         return $template;
+    }
+
+    /**
+     * Hide the WordPress admin bar on the RatNotes archive page only.
+     *
+     * Runs on `wp` (after the query is parsed) so the filter is in place
+     * before WordPress decides whether to show the admin bar at
+     * `template_redirect` priority 0.
+     */
+    public function maybe_hide_admin_bar() {
+        if ( get_query_var( 'ratnotes_archive' ) ) {
+            add_filter( 'show_admin_bar', '__return_false' );
+        }
     }
 
     /**
